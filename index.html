@@ -538,12 +538,18 @@
     // ─────────────────────────────────────────────────────────────
     const $ = (id) => document.getElementById(id);
 
+    // 全角数字→半角変換
+    function toHankaku(str) {
+      return String(str || "").replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+                               .replace(/。/g, ".").replace(/，/g, ",");
+    }
+
     const money = (n) => `¥${Number(n || 0).toLocaleString("ja-JP")}`;
     const nfmt  = (n) => Number(n || 0).toLocaleString("ja-JP");
 
     const num = (v) => {
       if (v === null || v === undefined || v === "") return 0;
-      const x = Number(String(v).replace(/,/g, "").replace(/[^\d.-]/g, ""));
+      const x = Number(toHankaku(String(v)).replace(/,/g, "").replace(/[^\d.-]/g, ""));
       return Number.isFinite(x) ? x : 0;
     };
 
@@ -553,11 +559,18 @@
 
     function formatWithComma(value) {
       if (value === null || value === undefined || value === "") return "";
-      const raw = String(value).replace(/,/g, "").trim();
+      const raw = toHankaku(String(value)).replace(/,/g, "").trim();
       if (raw === "" || raw === "-" || raw === "." || raw === "-.") return raw;
       const parsed = Number(raw.replace(/[^\d.-]/g, ""));
       if (!Number.isFinite(parsed)) return raw;
       return parsed.toLocaleString("ja-JP");
+    }
+
+    // 金券レート欄の表示整形（blur時）：pct→"97.5%" / unit→"500円"
+    function formatRate(value, mode) {
+      const n = num(value);
+      if (n === 0) return "";
+      return mode === "unit" ? nfmt(n) + "円" : nfmt(n) + "%";
     }
 
     // ⑩ escapeHtml を全箇所で使う
@@ -949,19 +962,31 @@
         }
       });
 
-      // フォーカス取得時：数値欄のカンマを除去
+      // フォーカス取得時：数値欄のカンマ・サフィックス除去＋全角→半角
       pageEl.addEventListener("focusin", (e) => {
         const t = e.target;
         if (!t.matches("input.js-numfmt")) return;
-        t.value = String(t.value || "").replace(/,/g, "");
+        // サフィックス（%・円）とカンマを除去し、全角→半角変換
+        t.value = toHankaku(String(t.value || ""))
+          .replace(/%|円|,/g, "").trim();
       });
 
       // input イベント：テキスト欄のみ即時反映（IME入力中はスキップ）
+      // 数値欄は入力中に全角→半角変換だけ行う（state更新はblur後）
       pageEl.addEventListener("input", (e) => {
         const t = e.target;
         if (!t.matches("input")) return;
-        if (t.classList.contains("js-numfmt")) return; // blur で処理
-        if (isComposing) return; // IME確定前はスキップ
+        if (t.classList.contains("js-numfmt")) {
+          // 全角数字をリアルタイムで半角に変換
+          const pos = t.selectionStart;
+          const converted = toHankaku(t.value);
+          if (converted !== t.value) {
+            t.value = converted;
+            try { t.setSelectionRange(pos, pos); } catch(_) {}
+          }
+          return;
+        }
+        if (isComposing) return;
         handleInputChange(t);
       });
 
@@ -969,7 +994,14 @@
       pageEl.addEventListener("focusout", (e) => {
         const t = e.target;
         if (!t.matches("input.js-numfmt")) return;
-        t.value = formatWithComma(t.value);
+        // レート欄はモードに応じてサフィックス付き整形、それ以外はカンマ整形
+        if (t.dataset.kinkenRate !== undefined) {
+          const ri = Number(t.dataset.kinkenRate);
+          const mode = state.data.kinken.rows[ri]?.rateMode || "pct";
+          t.value = formatRate(t.value, mode);
+        } else {
+          t.value = formatWithComma(t.value);
+        }
         updateStateOnly(t);
         const nextKey = e.relatedTarget?.dataset?.focusKey || null;
         updateTotals(nextKey);
@@ -1280,7 +1312,10 @@
                 <button type="button" class="smallbtn" data-action="toggle-kinken-mode" data-idx="${i}"
                   style="font-size:10px;padding:3px 6px;white-space:nowrap;flex-shrink:0;"
                   title="${modeLabel}モード（クリックで切替）">${modeLabel}</button>
-                ${textNumInput(r.rate || "", { "kinken-rate": i, ...fk(`kinken-r-${i}`) }, ratePh)}
+                <input type="text" inputmode="numeric" class="js-numfmt"
+                  data-kinken-rate="${i}" data-focus-key="kinken-r-${i}"
+                  value="${escapeHtml(formatRate(r.rate, mode))}"
+                  placeholder="${escapeHtml(ratePh)}">
               </div>
             </td>
             <td class="num">${money(totalFace)}</td>
