@@ -936,9 +936,7 @@
       pageEl.addEventListener("focusin", (e) => {
         const t = e.target;
         if (!t.matches("input.js-numfmt")) return;
-        const raw = String(t.value || "").replace(/,/g, "");
-        t.value = raw;
-        try { t.setSelectionRange(raw.length, raw.length); } catch (_) {}
+        t.value = String(t.value || "").replace(/,/g, "");
       });
 
       // input イベント：数値欄は state 更新しない（blur 後に処理）
@@ -1043,41 +1041,29 @@
       renderAll(opts);
     }
 
-    // 合計表示のみ差分更新（DOM再構築なし）
-    // data-total="key" 属性を持つ span をターゲットに書き換える
+    // 合計表示を更新：現在ページを再描画してから、フォーカスをアクティブな欄に戻す
     function updateTotals() {
-      saveState();
+      // 再描画前にフォーカス中の欄を記憶
+      const active = document.activeElement;
+      const focusKey = active?.dataset?.focusKey || null;
+      const selStart = active?.selectionStart ?? null;
+      const selEnd   = active?.selectionEnd   ?? null;
+
+      // ページ再描画（行ごとの小計・フッター合計も更新される）
+      renderPage();
+
+      // フォーカスを元の欄に戻す
+      if (focusKey) {
+        const el = document.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
+        if (el) {
+          el.focus();
+          // focusinでカンマ除去が走るので、値はそのまま（既にraw値）
+          try { if (selStart !== null) el.setSelectionRange(selStart, selEnd); } catch(_) {}
+        }
+      }
+
       renderPrintArea();
-      const set = (key, val) => {
-        const el = document.querySelector(`[data-total="${key}"]`);
-        if (el) el.textContent = val;
-      };
-      const c = calcRyoga();
-      set("ryoga-coins",  money(c.coinsTotal));
-      set("ryoga-bills",  money(c.billsTotal));
-      set("ryoga-extras", money(c.extrasTotal));
-      set("ryoga-grand",  money(c.grandTotal));
-
-      const t = calcTeleca();
-      set("teleca-qty", t.totalQty + " 枚");
-
-      const k = calcKinken();
-      set("kinken-face",   money(k.totalFace));
-      set("kinken-oroshi", money(k.totalOroshi));
-
-      set("hagaki-total", money(calcHagaki().total));
-      set("futsuu-total", money(calcFutsuuKitte().total));
-
-      const ks = calcKitteSheet();
-      set("sheet-simple-total", money(ks.simpleTotal));
-      set("sheet-mixed-total",  money(ks.mixedTotal));
-      set("sheet-total",        money(ks.total));
-
-      const kb = calcKitteBara();
-      set("bara-total",   money(kb.baraTotal));
-      set("kogata-total", money(kb.kogataTotal));
-      set("other-total",  money(kb.otherTotal));
-      set("bara-grand",   money(kb.grandTotal));
+      saveState();
     }
 
     function handleButtonAction(btn) {
