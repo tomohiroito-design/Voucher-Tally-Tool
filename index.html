@@ -1,0 +1,1791 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>同梱用 集計フォーム</title>
+  <style>
+    :root{
+      --bg:#ffffff;
+      --panel:#ffffff;
+      --muted:#5b6475;
+      --text:#111827;
+      --line:rgba(17,24,39,.12);
+      --primary:#2563eb;
+      --primaryText:#ffffff;
+      --danger:#dc2626;
+      --paper:#ffffff;
+      --ink:#111827;
+      --shadow:0 12px 40px rgba(0,0,0,.10);
+      --radius:14px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+
+    body{
+      margin:0;
+      font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP","Meiryo",sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+      position:sticky;
+      top:0;
+      z-index:10;
+      background:#fff;
+    }
+
+    .brand{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+
+    .logo{
+      width:40px;
+      height:40px;
+      display:grid;
+      place-items:center;
+      border-radius:12px;
+      background:#f3f4f6;
+      border:1px solid var(--line);
+    }
+
+    .title{
+      font-weight:800;
+      letter-spacing:.02em;
+    }
+
+    .subtitle{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .btn{
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:700;
+      font-size:13px;
+      white-space:nowrap;
+    }
+
+    .btn:hover{ background:#f9fafb; }
+
+    .btn.primary{
+      background:var(--primary);
+      border-color:rgba(37,99,235,.25);
+      color:var(--primaryText);
+    }
+
+    .btn.ghost{ background:transparent; }
+
+    main{
+      display:grid;
+      grid-template-columns:650px 1fr;
+      gap:16px;
+      padding:16px;
+      align-items:start;
+    }
+
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:14px;
+      box-shadow:var(--shadow);
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    .field label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+
+    .field input,
+    .field select{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text);
+      outline:none;
+      font:inherit;
+    }
+
+    .field input::placeholder,
+    .table td input::placeholder,
+    .mix-card input::placeholder,
+    input.js-numfmt::placeholder{
+      color:rgba(17,24,39,.18);
+    }
+
+    .divider{
+      height:1px;
+      background:var(--line);
+      margin:12px 0;
+    }
+
+    .block{
+      margin-top:12px;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      overflow:hidden;
+    }
+
+    .block-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px;
+      border-bottom:1px solid var(--line);
+      gap:12px;
+      background:#f9fafb;
+    }
+
+    .block-title{
+      font-weight:900;
+      letter-spacing:.02em;
+    }
+
+    .block-sub{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+
+    .block-actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .smallbtn{
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text);
+      cursor:pointer;
+      font-weight:800;
+      font-size:12px;
+      white-space:nowrap;
+    }
+
+    .smallbtn:hover{ background:#f9fafb; }
+
+    .smallbtn.danger{
+      color:var(--danger);
+      border-color:rgba(220,38,38,.25);
+    }
+
+    .smallbtn.danger:hover{
+      background:rgba(220,38,38,.06);
+    }
+
+    .table{
+      width:100%;
+      border-collapse:collapse;
+    }
+
+    .table th,
+    .table td{
+      border-bottom:1px solid var(--line);
+      padding:10px;
+      text-align:left;
+      font-size:13px;
+      vertical-align:middle;
+    }
+
+    .table th{
+      color:var(--muted);
+      font-weight:800;
+      background:#fff;
+    }
+
+    .table td input{
+      width:100%;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text);
+      font:inherit;
+    }
+
+    .num{ text-align:right; }
+    .table td.num input{ text-align:right; }
+
+    .table tfoot td{
+      font-weight:800;
+      background:#fafafa;
+    }
+
+    .hint{
+      margin-top:12px;
+      padding:12px 14px;
+      border-radius:var(--radius);
+      border:1px dashed rgba(17,24,39,.18);
+      background:#f9fafb;
+      font-size:13px;
+      color:rgba(17,24,39,.85);
+    }
+
+    .hint ul{
+      margin:8px 0 0;
+      padding-left:18px;
+      color:rgba(17,24,39,.78);
+    }
+
+    .hint li{ margin:6px 0; }
+
+    .preview{
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:6px;
+    }
+
+    .paper{
+      width:210mm;
+      min-height:297mm;
+      background:var(--paper);
+      color:var(--ink);
+      border-radius:12px;
+      box-shadow:var(--shadow);
+      padding:12mm 12mm;
+      border:1px solid rgba(17,24,39,.10);
+    }
+
+    .print-sheet{
+      margin-bottom:14mm;
+      page-break-after:always;
+    }
+
+    .print-sheet:last-child{
+      page-break-after:auto;
+      margin-bottom:0;
+    }
+
+    .paper-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      border-bottom:2px solid #e5e7eb;
+      padding-bottom:10px;
+      margin-bottom:10px;
+      gap:16px;
+    }
+
+    .paper-title{
+      font-size:18px;
+      font-weight:900;
+      letter-spacing:.06em;
+    }
+
+    .paper-meta{
+      font-size:12px;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width:220px;
+    }
+
+    .paper-meta .k{
+      color:#6b7280;
+      margin-right:8px;
+    }
+
+    .paper-note{
+      font-size:12px;
+      color:#6b7280;
+      margin:6px 0 10px;
+      min-height:16px;
+      white-space:pre-wrap;
+    }
+
+    .p-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:12px;
+      margin-top:8px;
+    }
+
+    .p-table th,
+    .p-table td{
+      border:1px solid #e5e7eb;
+      padding:6px 8px;
+      vertical-align:top;
+    }
+
+    .p-table th{
+      background:#f3f4f6;
+      text-align:left;
+      color:#374151;
+    }
+
+    .p-right{ text-align:right; }
+
+    .section-title{
+      margin-top:12px;
+      margin-bottom:6px;
+      font-weight:900;
+      font-size:13px;
+    }
+
+    .totalbar{
+      margin-top:10px;
+      display:flex;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+      gap:10px;
+      font-size:12px;
+    }
+
+    .totalchip{
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      padding:8px 10px;
+      background:#fff;
+      min-width:190px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .totalchip .k{ color:#6b7280; }
+
+    .paper-footer{
+      margin-top:12px;
+      padding-top:8px;
+      border-top:1px solid #e5e7eb;
+      color:#6b7280;
+      font-size:11px;
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .empty-preview{
+      color:#6b7280;
+      font-size:13px;
+      padding:24px 8px;
+    }
+
+    .mix-row-card{
+      border:1px dashed rgba(17,24,39,.16);
+      border-radius:12px;
+      padding:10px;
+      background:#fafafa;
+      margin-bottom:10px;
+    }
+
+    .mix-row-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+      margin-bottom:8px;
+    }
+
+    .mix-row-title{
+      font-weight:800;
+      font-size:12px;
+      color:#374151;
+    }
+
+    .mix-group-row{
+      display:grid;
+      grid-template-columns:1fr 1fr auto;
+      gap:8px;
+      align-items:end;
+      margin-bottom:8px;
+    }
+
+    .mix-group-label{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:4px;
+    }
+
+    @media (max-width:1150px){
+      main{ grid-template-columns:1fr; }
+      .paper{ width:min(210mm, 96vw); }
+    }
+
+    @media print{
+      body{ background:#fff; }
+      .no-print{ display:none !important; }
+      main{ padding:0; grid-template-columns:1fr; }
+      .preview{ padding:0; }
+      .paper{
+        box-shadow:none;
+        border-radius:0;
+        width:auto;
+        min-height:auto;
+        padding:0;
+        border:none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="no-print">
+    <div class="brand">
+      <div class="logo">🧾</div>
+      <div>
+        <div class="title">同梱用 集計フォーム</div>
+        <div class="subtitle">入力はジャンルごと、印刷はまとめて集計シートのみ</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn ghost" id="btnClear" type="button">リセット</button>
+      <button class="btn primary" id="btnPrint" type="button">まとめて印刷</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel no-print">
+      <div class="row">
+        <div class="field">
+          <label>入力するジャンル</label>
+          <select id="genre">
+            <option value="ryoga">両替（硬貨・紙幣）</option>
+            <option value="teleca">テレカ（50/105/100度）</option>
+            <option value="kinken">金券</option>
+            <option value="hagaki">はがき</option>
+            <option value="futsuu_kitte">普通切手</option>
+            <option value="kitte_sheet">切手（シート）</option>
+            <option value="kitte_bara">切手（バラ・小型）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>日付</label>
+          <input id="date" type="date" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <div class="field">
+          <label>店舗名</label>
+          <input id="store" type="text" placeholder="(例) 〇〇店" />
+        </div>
+        <div class="field">
+          <label>備考</label>
+          <input id="note" type="text"  />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div id="page"></div>
+
+      <div class="hint">
+        <b>運用メモ</b>
+        <ul>
+          <li>入力内容は自動保存される</li>
+          <li>両替・テレカは固定行に加えて「その他」の追加行も作れる</li>
+          <li>右側は全ジャンルの集計シート一覧。印刷もここだけ</li>
+          <li>ブラウザを閉じる・移動する時は警告が出る</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="preview">
+      <div class="paper" id="printArea"></div>
+    </section>
+  </main>
+
+  <script>
+    // ─────────────────────────────────────────────────────────────
+    // ① ストレージキー管理：バージョンを定数で一元管理
+    // ─────────────────────────────────────────────────────────────
+    const STORAGE_VERSION = 9;
+    const STORAGE_KEY = `doukon_form_state_v${STORAGE_VERSION}`;
+
+    // ─────────────────────────────────────────────────────────────
+    // ユーティリティ
+    // ─────────────────────────────────────────────────────────────
+    const $ = (id) => document.getElementById(id);
+
+    const money = (n) => `¥${Number(n || 0).toLocaleString("ja-JP")}`;
+    const nfmt  = (n) => Number(n || 0).toLocaleString("ja-JP");
+
+    const num = (v) => {
+      if (v === null || v === undefined || v === "") return 0;
+      const x = Number(String(v).replace(/,/g, "").replace(/[^\d.-]/g, ""));
+      return Number.isFinite(x) ? x : 0;
+    };
+
+    // ⑪ 0を空文字ではなく "-" で表示（未入力との区別）
+    const printNum   = (n) => num(n) === 0 ? "-" : nfmt(n);
+    const printMoney = (n) => num(n) === 0 ? "-" : money(n);
+
+    function formatWithComma(value) {
+      if (value === null || value === undefined || value === "") return "";
+      const raw = String(value).replace(/,/g, "").trim();
+      if (raw === "" || raw === "-" || raw === "." || raw === "-.") return raw;
+      const parsed = Number(raw.replace(/[^\d.-]/g, ""));
+      if (!Number.isFinite(parsed)) return raw;
+      return parsed.toLocaleString("ja-JP");
+    }
+
+    // ⑩ escapeHtml を全箇所で使う
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function textNumInput(value, dataAttrs = {}, placeholder = "(例) 1000") {
+      const attrStr = Object.entries(dataAttrs)
+        .map(([k, v]) => `data-${k}="${escapeHtml(String(v))}"`)
+        .join(" ");
+      return `<input type="text" inputmode="numeric" ${attrStr} value="${escapeHtml(formatWithComma(value))}" placeholder="${escapeHtml(placeholder)}" class="js-numfmt">`;
+    }
+
+    function textInput(value, dataAttrs = {}, placeholder = "(例) その他") {
+      const attrStr = Object.entries(dataAttrs)
+        .map(([k, v]) => `data-${k}="${escapeHtml(String(v))}"`)
+        .join(" ");
+      return `<input type="text" ${attrStr} value="${escapeHtml(value ?? "")}" placeholder="${escapeHtml(placeholder)}">`;
+    }
+
+    // ⑦ タイムゾーン依存を除去した今日の日付取得（JST固定）
+    function todayISO() {
+      const d = new Date();
+      const offset = d.getTimezoneOffset();
+      const local = new Date(d.getTime() - offset * 60 * 1000);
+      return local.toISOString().slice(0, 10);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // データ生成
+    // ─────────────────────────────────────────────────────────────
+    const createSimpleFaceQtyRow   = () => ({ face: 0, qty: 0 });
+    const createSimpleSheetRow     = (defaultCount = 0) => ({ stampValue: 0, perSheetCount: defaultCount, sheetQty: 0 });
+    const createMixedGroup         = () => ({ value: 0, count: 0 });
+    const createMixedSheetRow      = () => ({ groups: [createMixedGroup(), createMixedGroup()], sheetQty: 0 });
+
+    function createDefaultState() {
+      return {
+        genre: "ryoga",
+        date: todayISO(),
+        store: "",
+        note: "",
+        data: {
+          ryoga: {
+            coins: [
+              { amount: 10000, qty: 0 },
+              { amount:  5000, qty: 0 },
+              { amount:  1000, qty: 0 },
+              { amount:   500, qty: 0 },
+              { amount:   100, qty: 0 },
+              { amount:    50, qty: 0 },
+              { amount:    10, qty: 0 },
+              { amount:     5, qty: 0 },
+              { amount:     1, qty: 0 }
+            ],
+            bills: [
+              { amount: 10000, qty: 0 },
+              { amount:  5000, qty: 0 },
+              { amount:  2000, qty: 0 },
+              { amount:  1000, qty: 0 },
+              { amount:   500, qty: 0 },
+              { amount:   100, qty: 0 },
+              { amount:    50, qty: 0 },
+              { amount:    10, qty: 0 },
+              { amount:     5, qty: 0 },
+              { amount:     1, qty: 0 }
+            ],
+            extras: []
+          },
+          teleca: {
+            items: [
+              { label: "50度",  qty: 0 },
+              { label: "105度", qty: 0 },
+              { label: "100度", qty: 0 }
+            ],
+            extras: []
+          },
+          kinken: {
+            rows: [{ type: "", face: 0, qty: 0, rate: 0 }]
+          },
+          hagaki: {
+            rows: [createSimpleFaceQtyRow()]
+          },
+          futsuu_kitte: {
+            rows: [createSimpleSheetRow(100)]
+          },
+          kitte_sheet: {
+            simpleRows: [createSimpleSheetRow()],
+            mixedRows:  []
+          },
+          kitte_bara: {
+            baraRows:   [createSimpleFaceQtyRow()],
+            kogataRows: [createSimpleFaceQtyRow()],
+            otherRows:  [createSimpleFaceQtyRow()]
+          }
+        }
+      };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ⑧ マイグレーションロジックを migrateState に一本化
+    // ─────────────────────────────────────────────────────────────
+    function deepMerge(target, source) {
+      if (Array.isArray(target) && Array.isArray(source)) return source;
+      if (typeof target !== "object" || target === null) return source;
+      if (typeof source !== "object" || source === null) return target;
+      const out = { ...target };
+      Object.keys(source).forEach((key) => {
+        if (key in target) out[key] = deepMerge(target[key], source[key]);
+        else out[key] = source[key];
+      });
+      return out;
+    }
+
+    function normalizeMixedRow(row) {
+      if (row && Array.isArray(row.groups)) {
+        const groups = row.groups.map(g => ({
+          value: num(g?.value),
+          count: num(g?.count)
+        }));
+        return {
+          groups:   groups.length ? groups : [createMixedGroup(), createMixedGroup()],
+          sheetQty: num(row.sheetQty)
+        };
+      }
+      if (row && ("value1" in row || "value2" in row || "count1" in row || "count2" in row)) {
+        return {
+          groups: [
+            { value: num(row.value1), count: num(row.count1) },
+            { value: num(row.value2), count: num(row.count2) }
+          ],
+          sheetQty: num(row.sheetQty)
+        };
+      }
+      if (row && ("stampValue" in row || "perSheetCount" in row)) {
+        return {
+          groups:   [{ value: num(row.stampValue), count: num(row.perSheetCount) }],
+          sheetQty: num(row.sheetQty)
+        };
+      }
+      return createMixedSheetRow();
+    }
+
+    function migrateState(loaded, base) {
+      // deepMerge は配列を source で上書きするだけなので、
+      // 型変換・正規化はすべてここで完結させる
+      const out = deepMerge(base, loaded || {});
+
+      // futsuu_kitte
+      if (!out.data.futsuu_kitte || !Array.isArray(out.data.futsuu_kitte.rows) || out.data.futsuu_kitte.rows.length === 0) {
+        out.data.futsuu_kitte = { rows: [createSimpleSheetRow(100)] };
+      } else {
+        out.data.futsuu_kitte.rows = out.data.futsuu_kitte.rows.map(row => ({
+          stampValue:    num(row.stampValue),
+          perSheetCount: (row.perSheetCount == null || row.perSheetCount === "") ? 100 : num(row.perSheetCount),
+          sheetQty:      num(row.sheetQty)
+        }));
+      }
+
+      // kitte_sheet
+      if (!out.data.kitte_sheet) {
+        out.data.kitte_sheet = { simpleRows: [createSimpleSheetRow()], mixedRows: [] };
+      } else if (Array.isArray(out.data.kitte_sheet.rows)) {
+        // 旧形式の rows を mixedRows に変換
+        out.data.kitte_sheet = {
+          simpleRows: [createSimpleSheetRow()],
+          mixedRows:  out.data.kitte_sheet.rows.map(normalizeMixedRow)
+        };
+      } else {
+        out.data.kitte_sheet.simpleRows = Array.isArray(out.data.kitte_sheet.simpleRows)
+          ? out.data.kitte_sheet.simpleRows.map(r => ({
+              stampValue:    num(r.stampValue),
+              perSheetCount: num(r.perSheetCount),
+              sheetQty:      num(r.sheetQty)
+            }))
+          : [createSimpleSheetRow()];
+        out.data.kitte_sheet.mixedRows = Array.isArray(out.data.kitte_sheet.mixedRows)
+          ? out.data.kitte_sheet.mixedRows.map(normalizeMixedRow)
+          : [];
+      }
+
+      if (out.data.kitte_sheet.simpleRows.length === 0) {
+        out.data.kitte_sheet.simpleRows = [createSimpleSheetRow()];
+      }
+
+      return out;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ⑨ ストレージ：バージョン付き保存・自動クリア
+    // ─────────────────────────────────────────────────────────────
+    function loadState() {
+      const base = createDefaultState();
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return base;
+        const parsed = JSON.parse(raw);
+        return migrateState(parsed, base);
+      } catch (_) {
+        return base;
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    let state = loadState();
+
+    // ─────────────────────────────────────────────────────────────
+    // ⑤ フォーカス復元：data-focus-key 単一属性で一意に識別
+    // ─────────────────────────────────────────────────────────────
+    function getActiveInputState() {
+      const active = document.activeElement;
+      if (!active || active.tagName !== "INPUT") return null;
+      const key = active.dataset.focusKey || null;
+      if (!key) return null;
+      return { key, start: active.selectionStart, end: active.selectionEnd };
+    }
+
+    function restoreActiveInputState(saved) {
+      if (!saved) return;
+      const el = document.querySelector(`[data-focus-key="${CSS.escape(saved.key)}"]`);
+      if (!el) return;
+      el.focus();
+      try { el.setSelectionRange(saved.start, saved.end); } catch (_) {}
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ヘッダ同期
+    // ─────────────────────────────────────────────────────────────
+    function syncHeaderInputs() {
+      $("genre").value = state.genre;
+      $("date").value  = state.date;
+      $("store").value = state.store;
+      $("note").value  = state.note;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 集計計算
+    // ─────────────────────────────────────────────────────────────
+    function calcRyoga() {
+      const d = state.data.ryoga;
+      const coinsTotal  = d.coins.reduce ((a, r) => a + num(r.amount) * num(r.qty), 0);
+      const billsTotal  = d.bills.reduce ((a, r) => a + num(r.amount) * num(r.qty), 0);
+      const extrasTotal = d.extras.reduce((a, r) => a + num(r.amount) * num(r.qty), 0);
+      return { coinsTotal, billsTotal, extrasTotal, grandTotal: coinsTotal + billsTotal + extrasTotal };
+    }
+
+    function calcTeleca() {
+      const d = state.data.teleca;
+      return {
+        totalQty: d.items.reduce((a, r) => a + num(r.qty), 0) +
+                  d.extras.reduce((a, r) => a + num(r.qty), 0)
+      };
+    }
+
+    function calcKinken() {
+      const rows = state.data.kinken.rows;
+      return {
+        totalFace:  rows.reduce((a, r) => a + num(r.face) * num(r.qty), 0),
+        totalOroshi: rows.reduce((a, r) => a + num(r.face) * num(r.qty) * (num(r.rate) / 100), 0)
+      };
+    }
+
+    function calcHagaki() {
+      return { total: state.data.hagaki.rows.reduce((a, r) => a + num(r.face) * num(r.qty), 0) };
+    }
+
+    function calcFutsuuKitte() {
+      return { total: state.data.futsuu_kitte.rows.reduce((a, r) => a + num(r.stampValue) * num(r.perSheetCount) * num(r.sheetQty), 0) };
+    }
+
+    function calcMixedSheetPerSheet(row) {
+      return (row.groups || []).reduce((sum, g) => sum + num(g.value) * num(g.count), 0);
+    }
+
+    function calcKitteSheet() {
+      const d = state.data.kitte_sheet;
+      const simpleTotal = d.simpleRows.reduce((a, r) => a + num(r.stampValue) * num(r.perSheetCount) * num(r.sheetQty), 0);
+      const mixedTotal  = d.mixedRows.reduce ((a, r) => a + calcMixedSheetPerSheet(r) * num(r.sheetQty), 0);
+      return { simpleTotal, mixedTotal, total: simpleTotal + mixedTotal };
+    }
+
+    function calcKitteBara() {
+      const sum = (rows) => rows.reduce((a, r) => a + num(r.face) * num(r.qty), 0);
+      const baraTotal   = sum(state.data.kitte_bara.baraRows);
+      const kogataTotal = sum(state.data.kitte_bara.kogataRows);
+      const otherTotal  = sum(state.data.kitte_bara.otherRows);
+      return { baraTotal, kogataTotal, otherTotal, grandTotal: baraTotal + kogataTotal + otherTotal };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ① プレビュー表示フィルタ：主要フィールドが揃った行のみ通す
+    // ─────────────────────────────────────────────────────────────
+    const hasPrintableData = {
+      // 両替：qty が非ゼロ
+      ryogaFixed: (r) => num(r.qty) !== 0,
+      // 両替extra：amount と qty 両方
+      ryogaExtra: (r) => num(r.amount) !== 0 && num(r.qty) !== 0,
+      // テレカ：qty が非ゼロ
+      teleca:     (r) => num(r.qty) !== 0,
+      // 金券：額面と枚数が両方揃う
+      kinken:     (r) => num(r.face) !== 0 && num(r.qty) !== 0,
+      // はがき・バラ系：額面と枚数が両方揃う
+      faceQty:    (r) => num(r.face) !== 0 && num(r.qty) !== 0,
+      // シート系（通常）：額面とシート枚数が両方揃う
+      simpleSheet:(r) => num(r.stampValue) !== 0 && num(r.sheetQty) !== 0,
+      // 複合シート：いずれかのグループかシート枚数が非ゼロ
+      mixedSheet: (r) => {
+        const hasGroup = (r.groups || []).some(g => num(g.value) !== 0 || num(g.count) !== 0);
+        return hasGroup || num(r.sheetQty) !== 0;
+      }
+    };
+
+    // ─────────────────────────────────────────────────────────────
+    // ⑫ hasAnyData：プレビューと同じフィルタ条件を使って一元化
+    // ─────────────────────────────────────────────────────────────
+    function hasAnyData() {
+      const d = state.data;
+      return (
+        (state.store || "").trim() !== "" ||
+        (state.note  || "").trim() !== "" ||
+        d.ryoga.coins.some(hasPrintableData.ryogaFixed) ||
+        d.ryoga.bills.some(hasPrintableData.ryogaFixed) ||
+        d.ryoga.extras.some(hasPrintableData.ryogaExtra) ||
+        d.teleca.items.some(hasPrintableData.teleca) ||
+        d.teleca.extras.some(hasPrintableData.teleca) ||
+        d.kinken.rows.some(hasPrintableData.kinken) ||
+        d.hagaki.rows.some(hasPrintableData.faceQty) ||
+        d.futsuu_kitte.rows.some(hasPrintableData.simpleSheet) ||
+        d.kitte_sheet.simpleRows.some(hasPrintableData.simpleSheet) ||
+        d.kitte_sheet.mixedRows.some(hasPrintableData.mixedSheet) ||
+        d.kitte_bara.baraRows.some(hasPrintableData.faceQty) ||
+        d.kitte_bara.kogataRows.some(hasPrintableData.faceQty) ||
+        d.kitte_bara.otherRows.some(hasPrintableData.faceQty)
+      );
+    }
+
+    // bindNumberFormatEvents は廃止。focus/blur は setupDelegatedEvents に統合済み。
+    function bindNumberFormatEvents() { /* no-op: handled by delegated events */ }
+
+    // ─────────────────────────────────────────────────────────────
+    // ブロック HTML テンプレート
+    // ─────────────────────────────────────────────────────────────
+    function makeBlock(title, sub, innerHtml, actionsHtml = "") {
+      return `
+        <div class="block">
+          <div class="block-head">
+            <div>
+              <div class="block-title">${title}</div>
+              <div class="block-sub">${sub}</div>
+            </div>
+            <div class="block-actions">${actionsHtml}</div>
+          </div>
+          <div style="padding:12px;">${innerHtml}</div>
+        </div>
+      `;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ④ イベントバインド：イベント委譲で多重バインドを防止
+    //    #page に一度だけ delegated listener を付け、
+    //    renderPage() のたびの再付与をなくす
+    // ─────────────────────────────────────────────────────────────
+    function setupDelegatedEvents() {
+      const pageEl = $("page");
+
+      // フォーカス取得時：カンマを除去して生値表示（委譲）
+      pageEl.addEventListener("focusin", (e) => {
+        const t = e.target;
+        if (!t.matches("input.js-numfmt")) return;
+        const raw = String(t.value || "").replace(/,/g, "");
+        t.value = raw;
+        try { t.setSelectionRange(raw.length, raw.length); } catch (_) {}
+      });
+
+      // input イベント：数値欄は state 更新しない（blur 後に処理）
+      // 文字列欄（js-numfmt でないもの）は即時反映
+      pageEl.addEventListener("input", (e) => {
+        const t = e.target;
+        if (!t.matches("input")) return;
+        if (t.classList.contains("js-numfmt")) return; // blur で処理
+        handleInputChange(t);
+      });
+
+      // focusout：数値欄の state 反映
+      // renderAll を呼ばず updateStateOnly + updateTotals のみ実行する。
+      // DOM を再構築しないのでフォーカスが奪われず、1クリックで他の欄に移れる。
+      pageEl.addEventListener("focusout", (e) => {
+        const t = e.target;
+        if (!t.matches("input.js-numfmt")) return;
+        // カンマ整形（表示のみ）
+        t.value = formatWithComma(t.value);
+        // state へ保存 → 合計だけ差分更新
+        updateStateOnly(t);
+        updateTotals();
+      });
+
+      // ボタン系
+      pageEl.addEventListener("click", (e) => {
+        const t = e.target.closest("button[data-action]");
+        if (!t) return;
+        handleButtonAction(t);
+      });
+    }
+
+    // ② state更新のみ（renderAll を呼ばない）
+    function updateStateOnly(el) {
+      const d = el.dataset;
+      if (d.coinIdx !== undefined) {
+        state.data.ryoga.coins[Number(d.coinIdx)].qty = num(el.value);
+      } else if (d.billIdx !== undefined) {
+        state.data.ryoga.bills[Number(d.billIdx)].qty = num(el.value);
+      } else if (d.ryogaExtraKind !== undefined) {
+        state.data.ryoga.extras[Number(d.ryogaExtraKind)].kind = el.value;
+      } else if (d.ryogaExtraAmount !== undefined) {
+        state.data.ryoga.extras[Number(d.ryogaExtraAmount)].amount = num(el.value);
+      } else if (d.ryogaExtraQty !== undefined) {
+        state.data.ryoga.extras[Number(d.ryogaExtraQty)].qty = num(el.value);
+      } else if (d.telecaIdx !== undefined) {
+        state.data.teleca.items[Number(d.telecaIdx)].qty = num(el.value);
+      } else if (d.telecaExtraLabel !== undefined) {
+        state.data.teleca.extras[Number(d.telecaExtraLabel)].label = el.value;
+      } else if (d.telecaExtraQty !== undefined) {
+        state.data.teleca.extras[Number(d.telecaExtraQty)].qty = num(el.value);
+      } else if (d.kinkenType !== undefined) {
+        state.data.kinken.rows[Number(d.kinkenType)].type = el.value;
+      } else if (d.kinkenFace !== undefined) {
+        state.data.kinken.rows[Number(d.kinkenFace)].face = num(el.value);
+      } else if (d.kinkenQty !== undefined) {
+        state.data.kinken.rows[Number(d.kinkenQty)].qty = num(el.value);
+      } else if (d.kinkenRate !== undefined) {
+        state.data.kinken.rows[Number(d.kinkenRate)].rate = num(el.value);
+      } else if (d.hagakiFace !== undefined) {
+        state.data.hagaki.rows[Number(d.hagakiFace)].face = num(el.value);
+      } else if (d.hagakiQty !== undefined) {
+        state.data.hagaki.rows[Number(d.hagakiQty)].qty = num(el.value);
+      } else if (d.futsuuValue !== undefined) {
+        state.data.futsuu_kitte.rows[Number(d.futsuuValue)].stampValue = num(el.value);
+      } else if (d.futsuuCount !== undefined) {
+        state.data.futsuu_kitte.rows[Number(d.futsuuCount)].perSheetCount = num(el.value);
+      } else if (d.futsuuQty !== undefined) {
+        state.data.futsuu_kitte.rows[Number(d.futsuuQty)].sheetQty = num(el.value);
+      } else if (d.sheetsimpleValue !== undefined) {
+        state.data.kitte_sheet.simpleRows[Number(d.sheetsimpleValue)].stampValue = num(el.value);
+      } else if (d.sheetsimpleCount !== undefined) {
+        state.data.kitte_sheet.simpleRows[Number(d.sheetsimpleCount)].perSheetCount = num(el.value);
+      } else if (d.sheetsimpleQty !== undefined) {
+        state.data.kitte_sheet.simpleRows[Number(d.sheetsimpleQty)].sheetQty = num(el.value);
+      } else if (d.sheetmixGvalue !== undefined) {
+        const ri = Number(d.sheetmixGvalue), gi = Number(d.sheetmixGindex);
+        state.data.kitte_sheet.mixedRows[ri].groups[gi].value = num(el.value);
+      } else if (d.sheetmixGcount !== undefined) {
+        const ri = Number(d.sheetmixGcount), gi = Number(d.sheetmixGindex);
+        state.data.kitte_sheet.mixedRows[ri].groups[gi].count = num(el.value);
+      } else if (d.sheetmixQty !== undefined) {
+        state.data.kitte_sheet.mixedRows[Number(d.sheetmixQty)].sheetQty = num(el.value);
+      } else if (d.baraFace !== undefined) {
+        state.data.kitte_bara.baraRows[Number(d.baraFace)].face = num(el.value);
+      } else if (d.baraQty !== undefined) {
+        state.data.kitte_bara.baraRows[Number(d.baraQty)].qty = num(el.value);
+      } else if (d.kogataFace !== undefined) {
+        state.data.kitte_bara.kogataRows[Number(d.kogataFace)].face = num(el.value);
+      } else if (d.kogataQty !== undefined) {
+        state.data.kitte_bara.kogataRows[Number(d.kogataQty)].qty = num(el.value);
+      } else if (d.otherFace !== undefined) {
+        state.data.kitte_bara.otherRows[Number(d.otherFace)].face = num(el.value);
+      } else if (d.otherQty !== undefined) {
+        state.data.kitte_bara.otherRows[Number(d.otherQty)].qty = num(el.value);
+      }
+    }
+
+    // 旧 handleInputChange：文字列欄（input即時）では引き続きrenderAll
+    function handleInputChange(el, opts = {}) {
+      updateStateOnly(el);
+      renderAll(opts);
+    }
+
+    // 合計表示のみ差分更新（DOM再構築なし）
+    // data-total="key" 属性を持つ span をターゲットに書き換える
+    function updateTotals() {
+      saveState();
+      renderPrintArea();
+      const set = (key, val) => {
+        const el = document.querySelector(`[data-total="${key}"]`);
+        if (el) el.textContent = val;
+      };
+      const c = calcRyoga();
+      set("ryoga-coins",  money(c.coinsTotal));
+      set("ryoga-bills",  money(c.billsTotal));
+      set("ryoga-extras", money(c.extrasTotal));
+      set("ryoga-grand",  money(c.grandTotal));
+
+      const t = calcTeleca();
+      set("teleca-qty", t.totalQty + " 枚");
+
+      const k = calcKinken();
+      set("kinken-face",   money(k.totalFace));
+      set("kinken-oroshi", money(k.totalOroshi));
+
+      set("hagaki-total", money(calcHagaki().total));
+      set("futsuu-total", money(calcFutsuuKitte().total));
+
+      const ks = calcKitteSheet();
+      set("sheet-simple-total", money(ks.simpleTotal));
+      set("sheet-mixed-total",  money(ks.mixedTotal));
+      set("sheet-total",        money(ks.total));
+
+      const kb = calcKitteBara();
+      set("bara-total",   money(kb.baraTotal));
+      set("kogata-total", money(kb.kogataTotal));
+      set("other-total",  money(kb.otherTotal));
+      set("bara-grand",   money(kb.grandTotal));
+    }
+
+    function handleButtonAction(btn) {
+      const action = btn.dataset.action;
+
+      if (action === "add-ryoga-extra") {
+        state.data.ryoga.extras.push({ kind: "その他", amount: 0, qty: 0 });
+      } else if (action === "del-ryoga-extra") {
+        state.data.ryoga.extras.splice(Number(btn.dataset.idx), 1);
+      } else if (action === "add-teleca-extra") {
+        state.data.teleca.extras.push({ label: "その他", qty: 0 });
+      } else if (action === "del-teleca-extra") {
+        state.data.teleca.extras.splice(Number(btn.dataset.idx), 1);
+      } else if (action === "add-kinken") {
+        state.data.kinken.rows.push({ type: "", face: 0, qty: 0, rate: 0 });
+      } else if (action === "del-kinken") {
+        state.data.kinken.rows.splice(Number(btn.dataset.idx), 1);
+        if (state.data.kinken.rows.length === 0) state.data.kinken.rows.push({ type: "", face: 0, qty: 0, rate: 0 });
+      } else if (action === "add-hagaki") {
+        state.data.hagaki.rows.push(createSimpleFaceQtyRow());
+      } else if (action === "del-hagaki") {
+        state.data.hagaki.rows.splice(Number(btn.dataset.idx), 1);
+        if (state.data.hagaki.rows.length === 0) state.data.hagaki.rows.push(createSimpleFaceQtyRow());
+      } else if (action === "add-futsuu") {
+        state.data.futsuu_kitte.rows.push(createSimpleSheetRow(100));
+      } else if (action === "del-futsuu") {
+        state.data.futsuu_kitte.rows.splice(Number(btn.dataset.idx), 1);
+        if (state.data.futsuu_kitte.rows.length === 0) state.data.futsuu_kitte.rows.push(createSimpleSheetRow(100));
+      } else if (action === "add-sheetsimple") {
+        state.data.kitte_sheet.simpleRows.push(createSimpleSheetRow());
+      } else if (action === "del-sheetsimple") {
+        state.data.kitte_sheet.simpleRows.splice(Number(btn.dataset.idx), 1);
+        if (state.data.kitte_sheet.simpleRows.length === 0) state.data.kitte_sheet.simpleRows.push(createSimpleSheetRow());
+      } else if (action === "add-sheetmixed") {
+        state.data.kitte_sheet.mixedRows.push(createMixedSheetRow());
+      } else if (action === "del-sheetmixed-row") {
+        state.data.kitte_sheet.mixedRows.splice(Number(btn.dataset.idx), 1);
+      } else if (action === "add-sheetmixed-group") {
+        state.data.kitte_sheet.mixedRows[Number(btn.dataset.idx)].groups.push(createMixedGroup());
+      } else if (action === "del-sheetmixed-group") {
+        const ri = Number(btn.dataset.idx), gi = Number(btn.dataset.gidx);
+        state.data.kitte_sheet.mixedRows[ri].groups.splice(gi, 1);
+        if (state.data.kitte_sheet.mixedRows[ri].groups.length === 0)
+          state.data.kitte_sheet.mixedRows[ri].groups.push(createMixedGroup());
+      } else if (action === "add-bara") {
+        state.data.kitte_bara.baraRows.push(createSimpleFaceQtyRow());
+      } else if (action === "del-bara") {
+        state.data.kitte_bara.baraRows.splice(Number(btn.dataset.idx), 1);
+        if (state.data.kitte_bara.baraRows.length === 0) state.data.kitte_bara.baraRows.push(createSimpleFaceQtyRow());
+      } else if (action === "add-kogata") {
+        state.data.kitte_bara.kogataRows.push(createSimpleFaceQtyRow());
+      } else if (action === "del-kogata") {
+        state.data.kitte_bara.kogataRows.splice(Number(btn.dataset.idx), 1);
+        if (state.data.kitte_bara.kogataRows.length === 0) state.data.kitte_bara.kogataRows.push(createSimpleFaceQtyRow());
+      } else if (action === "add-other") {
+        state.data.kitte_bara.otherRows.push(createSimpleFaceQtyRow());
+      } else if (action === "del-other") {
+        state.data.kitte_bara.otherRows.splice(Number(btn.dataset.idx), 1);
+        if (state.data.kitte_bara.otherRows.length === 0) state.data.kitte_bara.otherRows.push(createSimpleFaceQtyRow());
+      }
+
+      renderAll();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ⑤ フォーカスキー生成ヘルパー
+    // ─────────────────────────────────────────────────────────────
+    function fk(key) {
+      return { "focus-key": key };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ページ描画
+    // ─────────────────────────────────────────────────────────────
+    function renderRyogaPage() {
+      const d = state.data.ryoga;
+      const c = calcRyoga();
+
+      // 硬貨テーブル（左）
+      const coinRows = d.coins.map((r, i) => `
+        <tr>
+          <td class="num">${nfmt(r.amount)}</td>
+          <td class="num">${textNumInput(r.qty || "", { "coin-idx": i, ...fk(`coin-${i}`) }, "枚数")}</td>
+          <td class="num">${money(num(r.amount) * num(r.qty))}</td>
+        </tr>`).join("");
+
+      // 紙幣テーブル（右）
+      const billRows = d.bills.map((r, i) => `
+        <tr>
+          <td class="num">${nfmt(r.amount)}</td>
+          <td class="num">${textNumInput(r.qty || "", { "bill-idx": i, ...fk(`bill-${i}`) }, "枚数")}</td>
+          <td class="num">${money(num(r.amount) * num(r.qty))}</td>
+        </tr>`).join("");
+
+      // その他追加行テーブル
+      const extraRows = d.extras.map((r, i) => `
+        <tr>
+          <td>${textInput(r.kind || "", { "ryoga-extra-kind": i, ...fk(`ryoga-ek-${i}`) }, "区分名")}</td>
+          <td class="num">${textNumInput(r.amount || "", { "ryoga-extra-amount": i, ...fk(`ryoga-ea-${i}`) }, "金額")}</td>
+          <td class="num">${textNumInput(r.qty || "", { "ryoga-extra-qty": i, ...fk(`ryoga-eq-${i}`) }, "枚数")}</td>
+          <td class="num">${money(num(r.amount) * num(r.qty))}</td>
+          <td><button type="button" class="smallbtn danger" data-action="del-ryoga-extra" data-idx="${i}">削除</button></td>
+        </tr>`).join("");
+
+      $("page").innerHTML = makeBlock(
+        "両替", "固定行 + その他追加行",
+        `<!-- 硬貨・紙幣 左右2カラム -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+          <!-- 硬貨 -->
+          <div>
+            <div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px;padding:0 2px;">硬貨</div>
+            <table class="table">
+              <thead><tr><th>金額</th><th>枚数</th><th>小計</th></tr></thead>
+              <tbody>${coinRows}</tbody>
+              <tfoot>
+                <tr><td colspan="2">硬貨 合計</td><td class="num"><span data-total="ryoga-coins">${money(c.coinsTotal)}</span></td></tr>
+              </tfoot>
+            </table>
+          </div>
+          <!-- 紙幣 -->
+          <div>
+            <div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px;padding:0 2px;">紙幣</div>
+            <table class="table">
+              <thead><tr><th>金額</th><th>枚数</th><th>小計</th></tr></thead>
+              <tbody>${billRows}</tbody>
+              <tfoot>
+                <tr><td colspan="2">紙幣 合計</td><td class="num"><span data-total="ryoga-bills">${money(c.billsTotal)}</span></td></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        ${d.extras.length > 0 ? `
+        <!-- その他 -->
+        <div style="margin-top:12px;">
+          <div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px;padding:0 2px;">その他</div>
+          <table class="table">
+            <thead><tr><th>区分</th><th>金額</th><th>枚数</th><th>小計</th><th></th></tr></thead>
+            <tbody>${extraRows}</tbody>
+            <tfoot>
+              <tr><td colspan="3">その他 合計</td><td class="num"><span data-total="ryoga-extras">${money(c.extrasTotal)}</span></td><td></td></tr>
+            </tfoot>
+          </table>
+        </div>` : ""}
+        <!-- 総合計 -->
+        <div style="margin-top:12px;padding:10px 12px;background:#f9fafb;border:1px solid var(--line);border-radius:10px;display:flex;justify-content:flex-end;align-items:center;gap:8px;font-weight:800;">
+          <span style="color:var(--muted);font-size:13px;">総合計</span>
+          <span style="font-size:15px;"><span data-total="ryoga-grand">${money(c.grandTotal)}</span></span>
+        </div>`,
+        `<button type="button" class="smallbtn" data-action="add-ryoga-extra">＋ その他行追加</button>`
+      );
+    }
+
+    function renderTelecaPage() {
+      const d = state.data.teleca;
+      const fixedRows = d.items.map((r, i) => `
+        <tr>
+          <td>${escapeHtml(r.label)}</td>
+          <td class="num">${textNumInput(r.qty || "", { "teleca-idx": i, ...fk(`teleca-${i}`) }, "枚数")}</td>
+          <td></td>
+        </tr>`).join("");
+
+      const extraRows = d.extras.map((r, i) => `
+        <tr>
+          <td>${textInput(r.label || "", { "teleca-extra-label": i, ...fk(`teleca-el-${i}`) }, "度数")}</td>
+          <td class="num">${textNumInput(r.qty || "", { "teleca-extra-qty": i, ...fk(`teleca-eq-${i}`) }, "枚数")}</td>
+          <td><button type="button" class="smallbtn danger" data-action="del-teleca-extra" data-idx="${i}">削除</button></td>
+        </tr>`).join("");
+
+      const c = calcTeleca();
+      $("page").innerHTML = makeBlock(
+        "テレカ", "固定行 + その他追加行",
+        `<table class="table">
+          <thead><tr><th>種類</th><th>枚数</th><th></th></tr></thead>
+          <tbody>${fixedRows}${extraRows}</tbody>
+          <tfoot><tr><td>合計</td><td class="num"><span data-total="teleca-qty">${nfmt(c.totalQty)} 枚</span></td><td></td></tr></tfoot>
+        </table>
+        <div class="hint" style="margin-top:12px;">※50、105、100度以外のテレカはオークション品想定</div>`,
+        `<button type="button" class="smallbtn" data-action="add-teleca-extra">＋ その他行追加</button>`
+      );
+    }
+
+    function renderKinkenPage() {
+      const rows = state.data.kinken.rows.map((r, i) => {
+        const totalFace = num(r.face) * num(r.qty);
+        const oroshi    = totalFace * (num(r.rate) / 100);
+        return `
+          <tr>
+            <td>${textInput(r.type || "", { "kinken-type": i, ...fk(`kinken-t-${i}`) }, "(例) JCB / 全百共 / クオカード")}</td>
+            <td class="num">${textNumInput(r.face || "", { "kinken-face": i, ...fk(`kinken-f-${i}`) }, "額面")}</td>
+            <td class="num">${textNumInput(r.qty  || "", { "kinken-qty":  i, ...fk(`kinken-q-${i}`) }, "枚数")}</td>
+            <td class="num">${textNumInput(r.rate || "", { "kinken-rate": i, ...fk(`kinken-r-${i}`) }, "例) 97.5")}</td>
+            <td class="num">${money(totalFace)}</td>
+            <td class="num">${money(oroshi)}</td>
+            <td><button type="button" class="smallbtn danger" data-action="del-kinken" data-idx="${i}">削除</button></td>
+          </tr>`;
+      }).join("");
+
+      const c = calcKinken();
+      $("page").innerHTML = makeBlock(
+        "金券", "種類 / 額面 / 枚数 / レート → 卸金額",
+        `<table class="table">
+          <thead><tr><th>種類</th><th>額面</th><th>枚数</th><th>レート(%)</th><th>合計額面</th><th>卸金額</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4">合計</td>
+              <td class="num"><span data-total="kinken-face">${money(c.totalFace)}</span></td>
+              <td class="num"><span data-total="kinken-oroshi">${money(c.totalOroshi)}</span></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>`,
+        `<button type="button" class="smallbtn" data-action="add-kinken">＋ 行追加</button>`
+      );
+    }
+
+    function makeFaceQtyTable(rows, prefix, footerTitle) {
+      return `
+        <table class="table">
+          <thead><tr><th>額面</th><th>枚数</th><th>額面計</th><th></th></tr></thead>
+          <tbody>
+            ${rows.map((r, i) => `
+              <tr>
+                <td class="num">${textNumInput(r.face || "", { [`${prefix}-face`]: i, ...fk(`${prefix}-f-${i}`) }, "額面")}</td>
+                <td class="num">${textNumInput(r.qty  || "", { [`${prefix}-qty`]:  i, ...fk(`${prefix}-q-${i}`) }, "枚数")}</td>
+                <td class="num">${money(num(r.face) * num(r.qty))}</td>
+                <td><button type="button" class="smallbtn danger" data-action="del-${prefix}" data-idx="${i}">削除</button></td>
+              </tr>`).join("")}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2">${footerTitle}</td>
+              <td class="num">${money(rows.reduce((a, r) => a + num(r.face) * num(r.qty), 0))}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>`;
+    }
+
+    function renderHagakiPage() {
+      const rows = state.data.hagaki.rows;
+      const c    = calcHagaki();
+      $("page").innerHTML =
+        makeBlock("はがき", "1ブロックで入力",
+          makeFaceQtyTable(rows, "hagaki", "合計"),
+          `<button type="button" class="smallbtn" data-action="add-hagaki">＋ 行追加</button>`) +
+        `<div class="hint"><b>総合計</b> <span data-total="hagaki-total">${money(c.total)}</span></div>`;
+    }
+
+    function makeSimpleSheetTable(rows, prefix, footerTitle) {
+      const subtotal = rows.reduce((a, r) => a + num(r.stampValue) * num(r.perSheetCount) * num(r.sheetQty), 0);
+      return `
+        <table class="table">
+          <thead>
+            <tr><th>額面(1枚)</th><th>枚数(1シート内)</th><th>シート枚数</th><th>額面(1シート)</th><th>金額</th><th></th></tr>
+          </thead>
+          <tbody>
+            ${rows.map((r, i) => {
+              const perSheet = num(r.stampValue) * num(r.perSheetCount);
+              const total    = perSheet * num(r.sheetQty);
+              return `
+                <tr>
+                  <td class="num">${textNumInput(r.stampValue    || "", { [`${prefix}-value`]: i, ...fk(`${prefix}-v-${i}`) }, "額面")}</td>
+                  <td class="num">${textNumInput(r.perSheetCount || "", { [`${prefix}-count`]: i, ...fk(`${prefix}-c-${i}`) }, "枚数/シート")}</td>
+                  <td class="num">${textNumInput(r.sheetQty      || "", { [`${prefix}-qty`]:   i, ...fk(`${prefix}-q-${i}`) }, "シート数")}</td>
+                  <td class="num">${money(perSheet)}</td>
+                  <td class="num">${money(total)}</td>
+                  <td><button type="button" class="smallbtn danger" data-action="del-${prefix}" data-idx="${i}">削除</button></td>
+                </tr>`;
+            }).join("")}
+          </tbody>
+          <tfoot>
+            <tr><td colspan="4">${footerTitle}</td><td class="num">${money(subtotal)}</td><td></td></tr>
+          </tfoot>
+        </table>`;
+    }
+
+    function renderFutsuuKittePage() {
+      const rows = state.data.futsuu_kitte.rows;
+      const c    = calcFutsuuKitte();
+      $("page").innerHTML =
+        makeBlock("普通切手", "枚数(1シート内)の初期値は100",
+          makeSimpleSheetTable(rows, "futsuu", "合計"),
+          `<button type="button" class="smallbtn" data-action="add-futsuu">＋ 行追加</button>`) +
+        `<div class="hint"><b>総合計</b> <span data-total="futsuu-total">${money(c.total)}</span></div>`;
+    }
+
+    function makeMixedSheetTable(rows, prefix, footerTitle) {
+      const subtotal = rows.reduce((a, r) => a + calcMixedSheetPerSheet(r) * num(r.sheetQty), 0);
+
+      const inp = (val, attrs, ph) => {
+        const attrStr = Object.entries(attrs).map(([k,v]) => `data-${k}="${escapeHtml(String(v))}"`).join(" ");
+        return `<input type="text" inputmode="numeric" class="js-numfmt" ${attrStr}
+          value="${escapeHtml(formatWithComma(val||""))}" placeholder="${escapeHtml(ph)}"
+          style="width:100%;padding:5px 7px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--text);font:inherit;font-size:12px;text-align:right;">`;
+      };
+
+      const cards = rows.map((row, ri) => {
+        const perSheet = calcMixedSheetPerSheet(row);
+        const total    = perSheet * num(row.sheetQty);
+        const groups   = row.groups || [];
+
+        // 左ペイン：額面・枚数ペアを横並び、ペア間に細い縦仕切り
+        // flex-wrap で折り返すため横スクロール不要
+        const groupPairs = groups.map((group, gi) => {
+          const isLast = gi === groups.length - 1;
+          return `
+            <div style="display:flex;align-items:flex-end;gap:3px;flex-shrink:0;">
+              <div style="width:52px;">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:2px;text-align:center;">額面</div>
+                ${inp(group.value, {"sheetmix-gvalue":ri,"sheetmix-gindex":gi,"focus-key":`smix-v-${ri}-${gi}`}, "額面")}
+              </div>
+              <div style="width:44px;">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:2px;text-align:center;">枚数</div>
+                ${inp(group.count, {"sheetmix-gcount":ri,"sheetmix-gindex":gi,"focus-key":`smix-c-${ri}-${gi}`}, "枚数")}
+              </div>
+              <button type="button" class="smallbtn danger" data-action="del-sheetmixed-group"
+                data-idx="${ri}" data-gidx="${gi}"
+                style="padding:4px 5px;font-size:11px;border-radius:6px;flex-shrink:0;margin-bottom:1px;">×</button>
+              ${!isLast ? `<div style="width:1px;height:26px;background:var(--line);flex-shrink:0;align-self:center;margin:0 3px;"></div>` : ""}
+            </div>`;
+        }).join("");
+
+        // 右ペイン：シート数・合計・ボタン（グレー系で統一）
+        const rightPane = `
+          <div style="display:flex;align-items:center;gap:8px;height:100%;padding:6px 8px;">
+            <div style="flex:1;min-width:50px;">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:2px;text-align:center;">シート数</div>
+              ${inp(row.sheetQty, {"sheetmix-qty":ri,"focus-key":`smix-q-${ri}`}, "枚")}
+            </div>
+            <div style="flex:1;min-width:70px;">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">合計</div>
+              <div style="font-size:13px;font-weight:900;color:var(--text);white-space:nowrap;">${money(total)}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0;">
+              <button type="button" class="smallbtn" data-action="add-sheetmixed-group" data-idx="${ri}"
+                style="font-size:10px;padding:3px 6px;border-radius:6px;">＋額面</button>
+              <button type="button" class="smallbtn danger" data-action="del-sheetmixed-row" data-idx="${ri}"
+                style="font-size:10px;padding:3px 6px;border-radius:6px;">削除</button>
+            </div>
+          </div>`;
+
+        return `
+          <div style="border:1px solid var(--line);border-radius:8px;margin-bottom:8px;overflow:hidden;">
+            <!-- ヘッダ：他の欄と同じグレー系 -->
+            <div style="padding:4px 10px;background:#f3f4f6;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:11px;font-weight:900;color:var(--text);">複合シート ${ri + 1}</span>
+              <span style="font-size:11px;color:var(--muted);">1シート = ${money(perSheet)}</span>
+            </div>
+            <!-- 本体：左30% / 右70% -->
+            <div style="display:grid;grid-template-columns:3fr 7fr;min-height:52px;">
+              <!-- 左：額面・枚数ペア群（折り返し） -->
+              <div style="padding:6px 6px;display:flex;align-items:flex-start;gap:4px;flex-wrap:wrap;border-right:1px solid var(--line);">
+                ${groupPairs}
+              </div>
+              <!-- 右：シート数・合計・操作 -->
+              <div>${rightPane}</div>
+            </div>
+          </div>`;
+      }).join("");
+
+      return `
+        ${cards}
+        <div style="text-align:right;font-size:12px;font-weight:800;padding:4px 2px;color:var(--muted);">
+          ${footerTitle}：<span style="font-size:13px;color:var(--text);">${money(subtotal)}</span>
+        </div>`;
+    }
+
+    function renderKitteSheetPage() {
+      const d = state.data.kitte_sheet;
+      const c = calcKitteSheet();
+      $("page").innerHTML = `
+        ${makeBlock("切手（シート）", "通常シートを標準表示",
+          makeSimpleSheetTable(d.simpleRows, "sheetsimple", "通常シート 合計"),
+          `<button type="button" class="smallbtn" data-action="add-sheetsimple">＋ 通常シート追加</button>`)}
+        ${makeBlock("切手（シート）複合", "必要な時だけ追加する",
+          d.mixedRows.length === 0
+            ? `<div class="hint" style="margin-top:0;">複合シートが無い場合はここは空のままです。必要な時だけ追加してください。</div>`
+            : makeMixedSheetTable(d.mixedRows, "sheetmix", "複合シート 合計"),
+          `<button type="button" class="smallbtn" data-action="add-sheetmixed">＋ 複合シート追加</button>`)}
+        <div class="hint">
+          <b>総合計</b><br>
+          通常シート：<span data-total="sheet-simple-total">${money(c.simpleTotal)}</span><br>
+          複合シート：<span data-total="sheet-mixed-total">${money(c.mixedTotal)}</span><br>
+          <b>切手（シート）合計：<span data-total="sheet-total">${money(c.total)}</span></b>
+        </div>`;
+    }
+
+    function renderKitteBaraPage() {
+      const bara   = state.data.kitte_bara.baraRows;
+      const kogata = state.data.kitte_bara.kogataRows;
+      const other  = state.data.kitte_bara.otherRows;
+      const c      = calcKitteBara();
+      $("page").innerHTML = `
+        ${makeBlock("切手（バラ）", "額面 / 枚数 / 額面計",
+          makeFaceQtyTable(bara,   "bara",   "バラ切手 合計"),
+          `<button type="button" class="smallbtn" data-action="add-bara">＋ 行追加</button>`)}
+        ${makeBlock("小型シート", "額面 / 枚数 / 額面計",
+          makeFaceQtyTable(kogata, "kogata", "小型シート 合計"),
+          `<button type="button" class="smallbtn" data-action="add-kogata">＋ 行追加</button>`)}
+        ${makeBlock("別枠", "額面 / 枚数 / 額面計",
+          makeFaceQtyTable(other,  "other",  "別枠 合計"),
+          `<button type="button" class="smallbtn" data-action="add-other">＋ 行追加</button>`)}
+        <div class="hint"><b>総合計</b> <span data-total="bara-grand">${money(c.grandTotal)}</span></div>`;
+    }
+
+    function renderPage() {
+      const genre = $("genre").value;
+      if (genre === "ryoga")        renderRyogaPage();
+      if (genre === "teleca")       renderTelecaPage();
+      if (genre === "kinken")       renderKinkenPage();
+      if (genre === "hagaki")       renderHagakiPage();
+      if (genre === "futsuu_kitte") renderFutsuuKittePage();
+      if (genre === "kitte_sheet")  renderKitteSheetPage();
+      if (genre === "kitte_bara")   renderKitteBaraPage();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 印刷プレビュー描画
+    // ─────────────────────────────────────────────────────────────
+    function tableHtml(headers, rows) {
+      return `
+        <table class="p-table">
+          <thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+          <tbody>${rows.join("")}</tbody>
+        </table>`;
+    }
+
+    function chipsHtml(items) {
+      return `<div class="totalbar">${items.map(x => `<div class="totalchip"><div class="k">${x.k}</div><div class="v">${x.v}</div></div>`).join("")}</div>`;
+    }
+
+    function makePrintSheet(title, bodyHtml) {
+      return `
+        <div class="print-sheet">
+          <div class="paper-header">
+            <div>
+              <div class="paper-title">${title}</div>
+              <div class="paper-note">${escapeHtml(state.note || "")}</div>
+            </div>
+            <div class="paper-meta">
+              <div><span class="k">日付</span><span>${escapeHtml(state.date || "-")}</span></div>
+              <div><span class="k">店舗</span><span>${escapeHtml(state.store || "-")}</span></div>
+            </div>
+          </div>
+          ${bodyHtml}
+          <div class="paper-footer">
+            <div>※集計シート</div>
+            <div>Generated by Web App</div>
+          </div>
+        </div>`;
+    }
+
+    function renderPrintArea() {
+      const root   = $("printArea");
+      const sheets = [];
+
+      // 両替
+      {
+        const d = state.data.ryoga;
+        const c = calcRyoga();
+        const rows = [
+          ...d.coins.filter(hasPrintableData.ryogaFixed).map(r =>
+            `<tr><td>硬貨</td><td class="p-right">${printNum(r.amount)}</td><td class="p-right">${printNum(r.qty)}</td><td class="p-right">${printMoney(num(r.amount)*num(r.qty))}</td></tr>`),
+          ...d.bills.filter(hasPrintableData.ryogaFixed).map(r =>
+            `<tr><td>紙幣</td><td class="p-right">${printNum(r.amount)}</td><td class="p-right">${printNum(r.qty)}</td><td class="p-right">${printMoney(num(r.amount)*num(r.qty))}</td></tr>`),
+          ...d.extras.filter(hasPrintableData.ryogaExtra).map(r =>
+            `<tr><td>${escapeHtml(r.kind||"")}</td><td class="p-right">${printNum(r.amount)}</td><td class="p-right">${printNum(r.qty)}</td><td class="p-right">${printMoney(num(r.amount)*num(r.qty))}</td></tr>`)
+        ];
+        if (rows.length > 0) {
+          sheets.push(makePrintSheet("両替 集計表",
+            tableHtml(["区分","金額","枚数","小計"], rows) +
+            chipsHtml([
+              { k:"硬貨 合計",  v:money(c.coinsTotal)  },
+              { k:"紙幣 合計",  v:money(c.billsTotal)  },
+              { k:"その他 合計",v:money(c.extrasTotal) },
+              { k:"総合計",     v:money(c.grandTotal)  }
+            ])
+          ));
+        }
+      }
+
+      // テレカ
+      {
+        const d = state.data.teleca;
+        const c = calcTeleca();
+        const rows = [
+          ...d.items.filter(hasPrintableData.teleca).map(r =>
+            `<tr><td>${escapeHtml(r.label)}</td><td class="p-right">${printNum(r.qty)}</td></tr>`),
+          ...d.extras.filter(hasPrintableData.teleca).map(r =>
+            `<tr><td>${escapeHtml(r.label||"")}</td><td class="p-right">${printNum(r.qty)}</td></tr>`)
+        ];
+        if (rows.length > 0) {
+          sheets.push(makePrintSheet("テレカ 集計表",
+            tableHtml(["種類","枚数"], rows) +
+            chipsHtml([{ k:"合計", v:`${nfmt(c.totalQty)} 枚` }]) +
+            `<div class="section-title">注記</div><div style="font-size:12px;color:#6b7280;">50、105、100度以外のテレカはオークション品想定</div>`
+          ));
+        }
+      }
+
+      // 金券
+      {
+        const d = state.data.kinken;
+        const c = calcKinken();
+        // ① 主要フィールド（face・qty）が揃った行のみ
+        const rows = d.rows.filter(hasPrintableData.kinken).map(r => {
+          const totalFace = num(r.face) * num(r.qty);
+          const oroshi    = totalFace * (num(r.rate) / 100);
+          return `<tr>
+            <td>${escapeHtml(r.type||"")}</td>
+            <td class="p-right">${printNum(r.face)}</td>
+            <td class="p-right">${printNum(r.qty)}</td>
+            <td class="p-right">${num(r.rate)===0 ? "-" : printNum(r.rate)+"%"}</td>
+            <td class="p-right">${printMoney(totalFace)}</td>
+            <td class="p-right">${printMoney(oroshi)}</td>
+          </tr>`;
+        });
+        if (rows.length > 0) {
+          sheets.push(makePrintSheet("金券 集計表",
+            tableHtml(["種類","額面","枚数","レート","合計額面","卸金額"], rows) +
+            chipsHtml([
+              { k:"合計額面",    v:money(c.totalFace)   },
+              { k:"卸金額 合計", v:money(c.totalOroshi) }
+            ])
+          ));
+        }
+      }
+
+      // はがき
+      {
+        const d = state.data.hagaki;
+        const c = calcHagaki();
+        // ① face・qty の両方が揃った行のみ
+        const rows = d.rows.filter(hasPrintableData.faceQty).map(r =>
+          `<tr><td class="p-right">${printNum(r.face)}</td><td class="p-right">${printNum(r.qty)}</td><td class="p-right">${printMoney(num(r.face)*num(r.qty))}</td></tr>`);
+        if (rows.length > 0) {
+          sheets.push(makePrintSheet("はがき 集計表",
+            tableHtml(["額面","枚数","額面計"], rows) +
+            chipsHtml([{ k:"総合計", v:money(c.total) }])
+          ));
+        }
+      }
+
+      // 普通切手
+      {
+        const d = state.data.futsuu_kitte;
+        const c = calcFutsuuKitte();
+        // ① stampValue・sheetQty が揃った行のみ（perSheetCount は補助値なので除外）
+        const rows = d.rows.filter(hasPrintableData.simpleSheet).map(r => {
+          const perSheet = num(r.stampValue) * num(r.perSheetCount);
+          const total    = perSheet * num(r.sheetQty);
+          return `<tr>
+            <td class="p-right">${printNum(r.stampValue)}</td>
+            <td class="p-right">${printNum(r.perSheetCount)}</td>
+            <td class="p-right">${printNum(r.sheetQty)}</td>
+            <td class="p-right">${printMoney(perSheet)}</td>
+            <td class="p-right">${printMoney(total)}</td>
+          </tr>`;
+        });
+        if (rows.length > 0) {
+          sheets.push(makePrintSheet("普通切手 集計表",
+            tableHtml(["額面(1枚)","枚数/シート","シート枚数","額面(1シート)","金額"], rows) +
+            chipsHtml([{ k:"総合計", v:money(c.total) }])
+          ));
+        }
+      }
+
+      // 切手（シート）
+      {
+        const d = state.data.kitte_sheet;
+        const c = calcKitteSheet();
+
+        // ① simpleRows: stampValue・sheetQty が揃った行のみ
+        const simpleRows = d.simpleRows.filter(hasPrintableData.simpleSheet).map(r => {
+          const perSheet = num(r.stampValue) * num(r.perSheetCount);
+          const total    = perSheet * num(r.sheetQty);
+          return `<tr>
+            <td>通常</td>
+            <td>${printNum(r.stampValue)}円 × ${printNum(r.perSheetCount)}枚</td>
+            <td class="p-right">${printMoney(perSheet)}</td>
+            <td class="p-right">${printNum(r.sheetQty)}</td>
+            <td class="p-right">${printMoney(total)}</td>
+          </tr>`;
+        });
+
+        const mixedRows = d.mixedRows.filter(hasPrintableData.mixedSheet).map(r => {
+          const groupsText = (r.groups||[])
+            .filter(g => num(g.value)!==0 || num(g.count)!==0)
+            .map(g => `${nfmt(g.value)}円×${nfmt(g.count)}枚`)
+            .join(" ・ ");
+          const perSheet = calcMixedSheetPerSheet(r);
+          const total    = perSheet * num(r.sheetQty);
+          return `<tr>
+            <td>複合</td>
+            <td>${escapeHtml(groupsText)}</td>
+            <td class="p-right">${printMoney(perSheet)}</td>
+            <td class="p-right">${printNum(r.sheetQty)}</td>
+            <td class="p-right">${printMoney(total)}</td>
+          </tr>`;
+        });
+
+        const rows = [...simpleRows, ...mixedRows];
+        if (rows.length > 0) {
+          sheets.push(makePrintSheet("切手（シート） 集計表",
+            tableHtml(["区分","内容","1シート合計","シート枚数","金額"], rows) +
+            chipsHtml([
+              { k:"通常シート 合計", v:money(c.simpleTotal) },
+              { k:"複合シート 合計", v:money(c.mixedTotal)  },
+              { k:"総合計",          v:money(c.total)        }
+            ])
+          ));
+        }
+      }
+
+      // 切手（バラ・小型）
+      {
+        const d = state.data.kitte_bara;
+        const c = calcKitteBara();
+        // ① face・qty の両方が揃った行のみ
+        const rows = [
+          ...d.baraRows.filter(hasPrintableData.faceQty).map(r =>
+            `<tr><td>バラ切手</td><td class="p-right">${printNum(r.face)}</td><td class="p-right">${printNum(r.qty)}</td><td class="p-right">${printMoney(num(r.face)*num(r.qty))}</td></tr>`),
+          ...d.kogataRows.filter(hasPrintableData.faceQty).map(r =>
+            `<tr><td>小型シート</td><td class="p-right">${printNum(r.face)}</td><td class="p-right">${printNum(r.qty)}</td><td class="p-right">${printMoney(num(r.face)*num(r.qty))}</td></tr>`),
+          ...d.otherRows.filter(hasPrintableData.faceQty).map(r =>
+            `<tr><td>別枠</td><td class="p-right">${printNum(r.face)}</td><td class="p-right">${printNum(r.qty)}</td><td class="p-right">${printMoney(num(r.face)*num(r.qty))}</td></tr>`)
+        ];
+        if (rows.length > 0) {
+          sheets.push(makePrintSheet("切手（バラ・小型） 集計表",
+            tableHtml(["区分","額面","枚数","額面計"], rows) +
+            chipsHtml([
+              { k:"バラ切手 合計",    v:money(c.baraTotal)   },
+              { k:"小型シート 合計",  v:money(c.kogataTotal) },
+              { k:"別枠 合計",        v:money(c.otherTotal)  },
+              { k:"総合計",           v:money(c.grandTotal)  }
+            ])
+          ));
+        }
+      }
+
+      root.innerHTML = sheets.length === 0
+        ? `<div class="empty-preview">まだ入力がありません。左側で各ジャンルを入力すると、ここにまとめて集計シートが並びます。</div>`
+        : sheets.join("");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // renderAll
+    // ─────────────────────────────────────────────────────────────
+    // focusout（blur）起因の renderAll ではフォーカスを復元しない。
+    // 復元すると「別の欄をクリック → focus イベントが横取り → 2クリック必要」になる。
+    function renderAll({ restoreFocus = true } = {}) {
+      const savedFocus = restoreFocus ? getActiveInputState() : null;
+      syncHeaderInputs();
+      renderPage();
+      renderPrintArea();
+      saveState();
+      if (savedFocus) restoreActiveInputState(savedFocus);
+    }
+
+    function resetAll() {
+      state = createDefaultState();
+      renderAll();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 初期化
+    // ─────────────────────────────────────────────────────────────
+    function init() {
+      syncHeaderInputs();
+
+      // ④ setupDelegatedEvents は一度だけ呼ぶ
+      setupDelegatedEvents();
+
+      $("genre").addEventListener("change", () => {
+        state.genre = $("genre").value;
+        renderAll();
+      });
+
+      $("date").addEventListener("input", (e) => {
+        state.date = e.target.value;
+        renderAll();
+      });
+
+      $("store").addEventListener("input", (e) => {
+        state.store = e.target.value;
+        renderAll();
+      });
+
+      $("note").addEventListener("input", (e) => {
+        state.note = e.target.value;
+        renderAll();
+      });
+
+      $("btnPrint").addEventListener("click", () => window.print());
+      $("btnClear").addEventListener("click", resetAll);
+
+      // ⑫ beforeunload の条件を hasAnyData（プレビューと同じ基準）に統一
+      window.addEventListener("beforeunload", (e) => {
+        if (!hasAnyData()) return;
+        e.preventDefault();
+        e.returnValue = "";
+      });
+
+      renderAll();
+    }
+
+    window.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>
