@@ -972,20 +972,11 @@
       });
 
       // input イベント：テキスト欄のみ即時反映（IME入力中はスキップ）
-      // 数値欄は入力中に全角→半角変換だけ行う（state更新はblur後）
+      // 数値欄（js-numfmt）は blur 後に処理するためここではスキップ
       pageEl.addEventListener("input", (e) => {
         const t = e.target;
         if (!t.matches("input")) return;
-        if (t.classList.contains("js-numfmt")) {
-          // 全角数字をリアルタイムで半角に変換
-          const pos = t.selectionStart;
-          const converted = toHankaku(t.value);
-          if (converted !== t.value) {
-            t.value = converted;
-            try { t.setSelectionRange(pos, pos); } catch(_) {}
-          }
-          return;
-        }
+        if (t.classList.contains("js-numfmt")) return;
         if (isComposing) return;
         handleInputChange(t);
       });
