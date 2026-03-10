@@ -950,15 +950,19 @@
 
       // focusout：数値欄の state 反映
       // renderAll を呼ばず updateStateOnly + updateTotals のみ実行する。
-      // DOM を再構築しないのでフォーカスが奪われず、1クリックで他の欄に移れる。
+      // ※ focusout 発火時、document.activeElement はすでに次の要素を指している。
+      //    次のフォーカス先を relatedTarget から取得してupdateTotalsに渡す。
       pageEl.addEventListener("focusout", (e) => {
         const t = e.target;
         if (!t.matches("input.js-numfmt")) return;
         // カンマ整形（表示のみ）
         t.value = formatWithComma(t.value);
-        // state へ保存 → 合計だけ差分更新
+        // state へ保存
         updateStateOnly(t);
-        updateTotals();
+        // 次フォーカス先（relatedTarget）を記憶してから再描画・復元
+        const nextEl = e.relatedTarget;
+        const nextKey = nextEl?.dataset?.focusKey || null;
+        updateTotals(nextKey);
       });
 
       // ボタン系
@@ -1041,24 +1045,19 @@
       renderAll(opts);
     }
 
-    // 合計表示を更新：現在ページを再描画してから、フォーカスをアクティブな欄に戻す
-    function updateTotals() {
-      // 再描画前にフォーカス中の欄を記憶
-      const active = document.activeElement;
-      const focusKey = active?.dataset?.focusKey || null;
-      const selStart = active?.selectionStart ?? null;
-      const selEnd   = active?.selectionEnd   ?? null;
-
+    // 合計表示を更新：現在ページを再描画してから、指定キーの欄にフォーカスを戻す
+    // nextFocusKey: focusout の relatedTarget の focusKey（次に移りたい欄）
+    function updateTotals(nextFocusKey = null) {
       // ページ再描画（行ごとの小計・フッター合計も更新される）
       renderPage();
 
-      // フォーカスを元の欄に戻す
-      if (focusKey) {
-        const el = document.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
+      // 次フォーカス先が指定されていれば、再描画後のDOMで該当欄にフォーカス
+      if (nextFocusKey) {
+        const el = document.querySelector(`[data-focus-key="${CSS.escape(nextFocusKey)}"]`);
         if (el) {
           el.focus();
-          // focusinでカンマ除去が走るので、値はそのまま（既にraw値）
-          try { if (selStart !== null) el.setSelectionRange(selStart, selEnd); } catch(_) {}
+          // 全選択（入力しやすいように）
+          try { el.select(); } catch(_) {}
         }
       }
 
