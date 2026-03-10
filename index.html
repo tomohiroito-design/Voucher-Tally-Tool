@@ -642,7 +642,7 @@
             extras: []
           },
           kinken: {
-            rows: [{ type: "", face: 0, qty: 0, rate: 0 }]
+            rows: [{ type: "", face: 0, qty: 0, rate: 0, rateMode: "pct" }]
           },
           hagaki: {
             rows: [createSimpleFaceQtyRow()]
@@ -824,8 +824,13 @@
     function calcKinken() {
       const rows = state.data.kinken.rows;
       return {
-        totalFace:  rows.reduce((a, r) => a + num(r.face) * num(r.qty), 0),
-        totalOroshi: rows.reduce((a, r) => a + num(r.face) * num(r.qty) * (num(r.rate) / 100), 0)
+        totalFace:   rows.reduce((a, r) => a + num(r.face) * num(r.qty), 0),
+        totalOroshi: rows.reduce((a, r) => {
+          const mode = r.rateMode || "pct";
+          return a + (mode === "unit"
+            ? num(r.rate) * num(r.qty)
+            : num(r.face) * num(r.qty) * (num(r.rate) / 100));
+        }, 0)
       };
     }
 
@@ -932,36 +937,41 @@
     function setupDelegatedEvents() {
       const pageEl = $("page");
 
-      // フォーカス取得時：カンマを除去して生値表示（委譲）
+      // IME入力中フラグ（compositionstart〜compositionend の間は true）
+      let isComposing = false;
+      pageEl.addEventListener("compositionstart", () => { isComposing = true;  });
+      pageEl.addEventListener("compositionend",   (e) => {
+        isComposing = false;
+        // IME確定時にテキスト欄を反映
+        const t = e.target;
+        if (t.matches("input") && !t.classList.contains("js-numfmt")) {
+          handleInputChange(t);
+        }
+      });
+
+      // フォーカス取得時：数値欄のカンマを除去
       pageEl.addEventListener("focusin", (e) => {
         const t = e.target;
         if (!t.matches("input.js-numfmt")) return;
         t.value = String(t.value || "").replace(/,/g, "");
       });
 
-      // input イベント：数値欄は state 更新しない（blur 後に処理）
-      // 文字列欄（js-numfmt でないもの）は即時反映
+      // input イベント：テキスト欄のみ即時反映（IME入力中はスキップ）
       pageEl.addEventListener("input", (e) => {
         const t = e.target;
         if (!t.matches("input")) return;
         if (t.classList.contains("js-numfmt")) return; // blur で処理
+        if (isComposing) return; // IME確定前はスキップ
         handleInputChange(t);
       });
 
       // focusout：数値欄の state 反映
-      // renderAll を呼ばず updateStateOnly + updateTotals のみ実行する。
-      // ※ focusout 発火時、document.activeElement はすでに次の要素を指している。
-      //    次のフォーカス先を relatedTarget から取得してupdateTotalsに渡す。
       pageEl.addEventListener("focusout", (e) => {
         const t = e.target;
         if (!t.matches("input.js-numfmt")) return;
-        // カンマ整形（表示のみ）
         t.value = formatWithComma(t.value);
-        // state へ保存
         updateStateOnly(t);
-        // 次フォーカス先（relatedTarget）を記憶してから再描画・復元
-        const nextEl = e.relatedTarget;
-        const nextKey = nextEl?.dataset?.focusKey || null;
+        const nextKey = e.relatedTarget?.dataset?.focusKey || null;
         updateTotals(nextKey);
       });
 
@@ -1078,10 +1088,15 @@
       } else if (action === "del-teleca-extra") {
         state.data.teleca.extras.splice(Number(btn.dataset.idx), 1);
       } else if (action === "add-kinken") {
-        state.data.kinken.rows.push({ type: "", face: 0, qty: 0, rate: 0 });
+        state.data.kinken.rows.push({ type: "", face: 0, qty: 0, rate: 0, rateMode: "pct" });
       } else if (action === "del-kinken") {
         state.data.kinken.rows.splice(Number(btn.dataset.idx), 1);
-        if (state.data.kinken.rows.length === 0) state.data.kinken.rows.push({ type: "", face: 0, qty: 0, rate: 0 });
+        if (state.data.kinken.rows.length === 0) state.data.kinken.rows.push({ type: "", face: 0, qty: 0, rate: 0, rateMode: "pct" });
+      } else if (action === "toggle-kinken-mode") {
+        const i = Number(btn.dataset.idx);
+        const row = state.data.kinken.rows[i];
+        row.rateMode = (row.rateMode === "unit") ? "pct" : "unit";
+        row.rate = 0; // モード切替時にレートをリセット
       } else if (action === "add-hagaki") {
         state.data.hagaki.rows.push(createSimpleFaceQtyRow());
       } else if (action === "del-hagaki") {
@@ -1247,14 +1262,27 @@
 
     function renderKinkenPage() {
       const rows = state.data.kinken.rows.map((r, i) => {
+        const mode      = r.rateMode || "pct";
         const totalFace = num(r.face) * num(r.qty);
-        const oroshi    = totalFace * (num(r.rate) / 100);
+        const oroshi    = mode === "unit"
+          ? num(r.rate) * num(r.qty)
+          : totalFace * (num(r.rate) / 100);
+        const ratePh    = mode === "unit" ? "単価(円)" : "例) 97.5";
+        const modeLabel = mode === "unit" ? "単価" : "買取％";
+        const modeNext  = mode === "unit" ? "→ ％" : "→ 単価";
         return `
           <tr>
             <td>${textInput(r.type || "", { "kinken-type": i, ...fk(`kinken-t-${i}`) }, "(例) JCB / 全百共 / クオカード")}</td>
             <td class="num">${textNumInput(r.face || "", { "kinken-face": i, ...fk(`kinken-f-${i}`) }, "額面")}</td>
             <td class="num">${textNumInput(r.qty  || "", { "kinken-qty":  i, ...fk(`kinken-q-${i}`) }, "枚数")}</td>
-            <td class="num">${textNumInput(r.rate || "", { "kinken-rate": i, ...fk(`kinken-r-${i}`) }, "例) 97.5")}</td>
+            <td class="num" style="white-space:nowrap;">
+              <div style="display:flex;align-items:center;gap:4px;">
+                <button type="button" class="smallbtn" data-action="toggle-kinken-mode" data-idx="${i}"
+                  style="font-size:10px;padding:3px 6px;white-space:nowrap;flex-shrink:0;"
+                  title="${modeLabel}モード（クリックで切替）">${modeLabel}</button>
+                ${textNumInput(r.rate || "", { "kinken-rate": i, ...fk(`kinken-r-${i}`) }, ratePh)}
+              </div>
+            </td>
             <td class="num">${money(totalFace)}</td>
             <td class="num">${money(oroshi)}</td>
             <td><button type="button" class="smallbtn danger" data-action="del-kinken" data-idx="${i}">削除</button></td>
@@ -1263,9 +1291,9 @@
 
       const c = calcKinken();
       $("page").innerHTML = makeBlock(
-        "金券", "種類 / 額面 / 枚数 / レート → 卸金額",
+        "金券", "種類 / 額面 / 枚数 / 買取率 → 卸金額",
         `<table class="table">
-          <thead><tr><th>種類</th><th>額面</th><th>枚数</th><th>レート(%)</th><th>合計額面</th><th>卸金額</th><th></th></tr></thead>
+          <thead><tr><th>種類</th><th>額面</th><th>枚数</th><th>買取率 / 単価</th><th>合計額面</th><th>卸金額</th><th></th></tr></thead>
           <tbody>${rows}</tbody>
           <tfoot>
             <tr>
@@ -1571,13 +1599,19 @@
         const c = calcKinken();
         // ① 主要フィールド（face・qty）が揃った行のみ
         const rows = d.rows.filter(hasPrintableData.kinken).map(r => {
+          const mode      = r.rateMode || "pct";
           const totalFace = num(r.face) * num(r.qty);
-          const oroshi    = totalFace * (num(r.rate) / 100);
+          const oroshi    = mode === "unit"
+            ? num(r.rate) * num(r.qty)
+            : totalFace * (num(r.rate) / 100);
+          const rateLabel = mode === "unit"
+            ? (num(r.rate) === 0 ? "-" : "¥" + printNum(r.rate) + "/枚")
+            : (num(r.rate) === 0 ? "-" : printNum(r.rate) + "%");
           return `<tr>
             <td>${escapeHtml(r.type||"")}</td>
             <td class="p-right">${printNum(r.face)}</td>
             <td class="p-right">${printNum(r.qty)}</td>
-            <td class="p-right">${num(r.rate)===0 ? "-" : printNum(r.rate)+"%"}</td>
+            <td class="p-right">${rateLabel}</td>
             <td class="p-right">${printMoney(totalFace)}</td>
             <td class="p-right">${printMoney(oroshi)}</td>
           </tr>`;
