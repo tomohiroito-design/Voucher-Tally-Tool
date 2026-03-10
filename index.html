@@ -1050,19 +1050,20 @@
     function updateTotals(nextFocusKey = null) {
       // ページ再描画（行ごとの小計・フッター合計も更新される）
       renderPage();
-
-      // 次フォーカス先が指定されていれば、再描画後のDOMで該当欄にフォーカス
-      if (nextFocusKey) {
-        const el = document.querySelector(`[data-focus-key="${CSS.escape(nextFocusKey)}"]`);
-        if (el) {
-          el.focus();
-          // 全選択（入力しやすいように）
-          try { el.select(); } catch(_) {}
-        }
-      }
-
       renderPrintArea();
       saveState();
+
+      // renderPage() でDOMが作り直されるため、フォーカス復元を
+      // requestAnimationFrame で遅らせてブラウザのDOM更新完了を待つ
+      if (nextFocusKey) {
+        requestAnimationFrame(() => {
+          const el = document.querySelector(`[data-focus-key="${CSS.escape(nextFocusKey)}"]`);
+          if (el) {
+            el.focus();
+            try { el.select(); } catch(_) {}
+          }
+        });
+      }
     }
 
     function handleButtonAction(btn) {
