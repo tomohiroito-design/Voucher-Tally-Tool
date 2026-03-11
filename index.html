@@ -587,7 +587,7 @@
       const attrStr = Object.entries(dataAttrs)
         .map(([k, v]) => `data-${k}="${escapeHtml(String(v))}"`)
         .join(" ");
-      return `<input type="text" inputmode="numeric" ${attrStr} value="${escapeHtml(formatWithComma(value))}" placeholder="${escapeHtml(placeholder)}" class="js-numfmt">`;
+      return `<input type="text" ${attrStr} value="${escapeHtml(formatWithComma(value))}" placeholder="${escapeHtml(placeholder)}" class="js-numfmt">`;
     }
 
     function textInput(value, dataAttrs = {}, placeholder = "(例) その他") {
@@ -721,11 +721,8 @@
     }
 
     function migrateState(loaded, base) {
-      // deepMerge は配列を source で上書きするだけなので、
-      // 型変換・正規化はすべてここで完結させる
       const out = deepMerge(base, loaded || {});
 
-      // futsuu_kitte
       if (!out.data.futsuu_kitte || !Array.isArray(out.data.futsuu_kitte.rows) || out.data.futsuu_kitte.rows.length === 0) {
         out.data.futsuu_kitte = { rows: [createSimpleSheetRow(100)] };
       } else {
@@ -736,11 +733,9 @@
         }));
       }
 
-      // kitte_sheet
       if (!out.data.kitte_sheet) {
         out.data.kitte_sheet = { simpleRows: [createSimpleSheetRow()], mixedRows: [] };
       } else if (Array.isArray(out.data.kitte_sheet.rows)) {
-        // 旧形式の rows を mixedRows に変換
         out.data.kitte_sheet = {
           simpleRows: [createSimpleSheetRow()],
           mixedRows:  out.data.kitte_sheet.rows.map(normalizeMixedRow)
@@ -878,19 +873,12 @@
     // ① プレビュー表示フィルタ：主要フィールドが揃った行のみ通す
     // ─────────────────────────────────────────────────────────────
     const hasPrintableData = {
-      // 両替：qty が非ゼロ
       ryogaFixed: (r) => num(r.qty) !== 0,
-      // 両替extra：amount と qty 両方
       ryogaExtra: (r) => num(r.amount) !== 0 && num(r.qty) !== 0,
-      // テレカ：qty が非ゼロ
       teleca:     (r) => num(r.qty) !== 0,
-      // 金券：額面と枚数が両方揃う
       kinken:     (r) => num(r.face) !== 0 && num(r.qty) !== 0,
-      // はがき・バラ系：額面と枚数が両方揃う
       faceQty:    (r) => num(r.face) !== 0 && num(r.qty) !== 0,
-      // シート系（通常）：額面とシート枚数が両方揃う
       simpleSheet:(r) => num(r.stampValue) !== 0 && num(r.sheetQty) !== 0,
-      // 複合シート：いずれかのグループかシート枚数が非ゼロ
       mixedSheet: (r) => {
         const hasGroup = (r.groups || []).some(g => num(g.value) !== 0 || num(g.count) !== 0);
         return hasGroup || num(r.sheetQty) !== 0;
@@ -921,7 +909,6 @@
       );
     }
 
-    // bindNumberFormatEvents は廃止。focus/blur は setupDelegatedEvents に統合済み。
     function bindNumberFormatEvents() { /* no-op: handled by delegated events */ }
 
     // ─────────────────────────────────────────────────────────────
@@ -943,36 +930,130 @@
     }
 
     // ─────────────────────────────────────────────────────────────
+    // ★ DOM を壊さずに合計・小計だけを更新するヘルパー
+    //    data-live="キー名" を持つ span の textContent を書き換える
+    // ─────────────────────────────────────────────────────────────
+    function updateLiveTotals() {
+      const page = $("page");
+      const els = page.querySelectorAll("[data-live]");
+      if (els.length === 0) return;
+
+      const genre = state.genre;
+      const values = {};
+
+      if (genre === "ryoga") {
+        const d = state.data.ryoga;
+        const c = calcRyoga();
+        // 行ごとの小計
+        d.coins.forEach((r, i)  => { values[`coin-sub-${i}`] = money(num(r.amount) * num(r.qty)); });
+        d.bills.forEach((r, i)  => { values[`bill-sub-${i}`] = money(num(r.amount) * num(r.qty)); });
+        d.extras.forEach((r, i) => { values[`ryoga-extra-sub-${i}`] = money(num(r.amount) * num(r.qty)); });
+        values["ryoga-coins"]  = money(c.coinsTotal);
+        values["ryoga-bills"]  = money(c.billsTotal);
+        values["ryoga-extras"] = money(c.extrasTotal);
+        values["ryoga-grand"]  = money(c.grandTotal);
+      } else if (genre === "teleca") {
+        const c = calcTeleca();
+        values["teleca-qty"] = nfmt(c.totalQty) + " 枚";
+      } else if (genre === "kinken") {
+        const rows = state.data.kinken.rows;
+        rows.forEach((r, i) => {
+          const mode      = r.rateMode || "pct";
+          const totalFace = num(r.face) * num(r.qty);
+          const oroshi    = mode === "unit" ? num(r.rate) * num(r.qty) : totalFace * (num(r.rate) / 100);
+          values[`kinken-face-${i}`]   = money(totalFace);
+          values[`kinken-oroshi-${i}`] = money(oroshi);
+        });
+        const c = calcKinken();
+        values["kinken-face"]   = money(c.totalFace);
+        values["kinken-oroshi"] = money(c.totalOroshi);
+      } else if (genre === "hagaki") {
+        const rows = state.data.hagaki.rows;
+        rows.forEach((r, i) => { values[`hagaki-sub-${i}`] = money(num(r.face) * num(r.qty)); });
+        const c = calcHagaki();
+        values["hagaki-total"] = money(c.total);
+        values["hagaki-foot"]  = money(c.total);
+      } else if (genre === "futsuu_kitte") {
+        const rows = state.data.futsuu_kitte.rows;
+        rows.forEach((r, i) => {
+          const ps = num(r.stampValue) * num(r.perSheetCount);
+          values[`futsuu-ps-${i}`]  = money(ps);
+          values[`futsuu-sub-${i}`] = money(ps * num(r.sheetQty));
+        });
+        const c = calcFutsuuKitte();
+        values["futsuu-foot"]  = money(c.total);
+        values["futsuu-total"] = money(c.total);
+      } else if (genre === "kitte_sheet") {
+        const d = state.data.kitte_sheet;
+        d.simpleRows.forEach((r, i) => {
+          const ps = num(r.stampValue) * num(r.perSheetCount);
+          values[`sheetsimple-ps-${i}`]  = money(ps);
+          values[`sheetsimple-sub-${i}`] = money(ps * num(r.sheetQty));
+        });
+        d.mixedRows.forEach((r, ri) => {
+          const ps = calcMixedSheetPerSheet(r);
+          values[`sheetmix-ps-${ri}`]  = money(ps);
+          values[`sheetmix-sub-${ri}`] = money(ps * num(r.sheetQty));
+        });
+        const c = calcKitteSheet();
+        values["sheetsimple-foot"]   = money(c.simpleTotal);
+        values["sheetmix-foot"]      = money(c.mixedTotal);
+        values["sheet-simple-total"] = money(c.simpleTotal);
+        values["sheet-mixed-total"]  = money(c.mixedTotal);
+        values["sheet-total"]        = money(c.total);
+      } else if (genre === "kitte_bara") {
+        const d = state.data.kitte_bara;
+        d.baraRows.forEach((r, i)   => { values[`bara-sub-${i}`]   = money(num(r.face) * num(r.qty)); });
+        d.kogataRows.forEach((r, i) => { values[`kogata-sub-${i}`] = money(num(r.face) * num(r.qty)); });
+        d.otherRows.forEach((r, i)  => { values[`other-sub-${i}`]  = money(num(r.face) * num(r.qty)); });
+        const c = calcKitteBara();
+        values["bara-foot"]   = money(c.baraTotal);
+        values["kogata-foot"] = money(c.kogataTotal);
+        values["other-foot"]  = money(c.otherTotal);
+        values["bara-grand"]  = money(c.grandTotal);
+      }
+
+      els.forEach(el => {
+        const key = el.dataset.live;
+        if (key in values) el.textContent = values[key];
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // ④ イベントバインド：イベント委譲で多重バインドを防止
-    //    #page に一度だけ delegated listener を付け、
-    //    renderPage() のたびの再付与をなくす
     // ─────────────────────────────────────────────────────────────
     function setupDelegatedEvents() {
       const pageEl = $("page");
 
-      // IME入力中フラグ（compositionstart〜compositionend の間は true）
       let isComposing = false;
       pageEl.addEventListener("compositionstart", () => { isComposing = true;  });
       pageEl.addEventListener("compositionend",   (e) => {
         isComposing = false;
-        // IME確定時にテキスト欄を反映
         const t = e.target;
-        if (t.matches("input") && !t.classList.contains("js-numfmt")) {
+        if (!t.matches("input")) return;
+
+        if (t.classList.contains("js-numfmt")) {
+          // ★ 数値欄：IME確定時に全角→半角変換＋カンマ整形を即時適用
+          //    これにより「１０００」→「1,000」に変わる
+          if (t.dataset.kinkenRate !== undefined) {
+            const ri = Number(t.dataset.kinkenRate);
+            const mode = state.data.kinken.rows[ri]?.rateMode || "pct";
+            t.value = formatRate(t.value, mode);
+          } else {
+            t.value = formatWithComma(t.value);
+          }
+          updateStateOnly(t);
+          updateLiveTotals();
+          renderPrintArea();
+          saveState();
+        } else {
+          // テキスト欄：そのまま反映
           handleInputChange(t);
         }
       });
 
-      // フォーカス取得時：数値欄のカンマ・サフィックス除去＋全角→半角
-      pageEl.addEventListener("focusin", (e) => {
-        const t = e.target;
-        if (!t.matches("input.js-numfmt")) return;
-        // サフィックス（%・円）とカンマを除去し、全角→半角変換
-        t.value = toHankaku(String(t.value || ""))
-          .replace(/%|円|,/g, "").trim();
-      });
-
       // input イベント：テキスト欄のみ即時反映（IME入力中はスキップ）
-      // 数値欄（js-numfmt）は blur 後に処理するためここではスキップ
+      // 数値欄（js-numfmt）は compositionend / focusout で処理
       pageEl.addEventListener("input", (e) => {
         const t = e.target;
         if (!t.matches("input")) return;
@@ -981,11 +1062,13 @@
         handleInputChange(t);
       });
 
-      // focusout：数値欄の state 反映
+      // ★ focusout：数値欄の state 反映 → DOM を壊さず合計だけ更新
+      //    IME確定済みの値を最終整形してから state に反映
       pageEl.addEventListener("focusout", (e) => {
         const t = e.target;
         if (!t.matches("input.js-numfmt")) return;
-        // レート欄はモードに応じてサフィックス付き整形、それ以外はカンマ整形
+
+        // 全角→半角変換＋カンマ整形（compositionend で済んでいても冪等なので安全）
         if (t.dataset.kinkenRate !== undefined) {
           const ri = Number(t.dataset.kinkenRate);
           const mode = state.data.kinken.rows[ri]?.rateMode || "pct";
@@ -993,9 +1076,11 @@
         } else {
           t.value = formatWithComma(t.value);
         }
+
         updateStateOnly(t);
-        const nextKey = e.relatedTarget?.dataset?.focusKey || null;
-        updateTotals(nextKey);
+        updateLiveTotals();
+        renderPrintArea();
+        saveState();
       });
 
       // ボタン系
@@ -1072,22 +1157,16 @@
       }
     }
 
-    // 旧 handleInputChange：文字列欄（input即時）では引き続きrenderAll
     function handleInputChange(el, opts = {}) {
       updateStateOnly(el);
       renderAll(opts);
     }
 
-    // 合計表示を更新：現在ページを再描画してから、指定キーの欄にフォーカスを戻す
-    // nextFocusKey: focusout の relatedTarget の focusKey（次に移りたい欄）
+    // updateTotals は廃止（focusout から直接 updateLiveTotals を呼ぶ）
     function updateTotals(nextFocusKey = null) {
-      // ページ再描画（行ごとの小計・フッター合計も更新される）
       renderPage();
       renderPrintArea();
       saveState();
-
-      // renderPage() でDOMが作り直されるため、フォーカス復元を
-      // requestAnimationFrame で遅らせてブラウザのDOM更新完了を待つ
       if (nextFocusKey) {
         requestAnimationFrame(() => {
           const el = document.querySelector(`[data-focus-key="${CSS.escape(nextFocusKey)}"]`);
@@ -1119,7 +1198,7 @@
         const i = Number(btn.dataset.idx);
         const row = state.data.kinken.rows[i];
         row.rateMode = (row.rateMode === "unit") ? "pct" : "unit";
-        row.rate = 0; // モード切替時にレートをリセット
+        row.rate = 0;
       } else if (action === "add-hagaki") {
         state.data.hagaki.rows.push(createSimpleFaceQtyRow());
       } else if (action === "del-hagaki") {
@@ -1174,81 +1253,73 @@
     }
 
     // ─────────────────────────────────────────────────────────────
-    // ページ描画
+    // ページ描画（★ data-live 属性を小計・合計 span に付与）
     // ─────────────────────────────────────────────────────────────
     function renderRyogaPage() {
       const d = state.data.ryoga;
       const c = calcRyoga();
 
-      // 硬貨テーブル（左）
       const coinRows = d.coins.map((r, i) => `
         <tr>
           <td class="num">${nfmt(r.amount)}</td>
           <td class="num">${textNumInput(r.qty || "", { "coin-idx": i, ...fk(`coin-${i}`) }, "枚数")}</td>
-          <td class="num">${money(num(r.amount) * num(r.qty))}</td>
+          <td class="num"><span data-live="coin-sub-${i}">${money(num(r.amount) * num(r.qty))}</span></td>
         </tr>`).join("");
 
-      // 紙幣テーブル（右）
       const billRows = d.bills.map((r, i) => `
         <tr>
           <td class="num">${nfmt(r.amount)}</td>
           <td class="num">${textNumInput(r.qty || "", { "bill-idx": i, ...fk(`bill-${i}`) }, "枚数")}</td>
-          <td class="num">${money(num(r.amount) * num(r.qty))}</td>
+          <td class="num"><span data-live="bill-sub-${i}">${money(num(r.amount) * num(r.qty))}</span></td>
         </tr>`).join("");
 
-      // その他追加行テーブル
       const extraRows = d.extras.map((r, i) => `
         <tr>
           <td>${textInput(r.kind || "", { "ryoga-extra-kind": i, ...fk(`ryoga-ek-${i}`) }, "区分名")}</td>
           <td class="num">${textNumInput(r.amount || "", { "ryoga-extra-amount": i, ...fk(`ryoga-ea-${i}`) }, "金額")}</td>
           <td class="num">${textNumInput(r.qty || "", { "ryoga-extra-qty": i, ...fk(`ryoga-eq-${i}`) }, "枚数")}</td>
-          <td class="num">${money(num(r.amount) * num(r.qty))}</td>
+          <td class="num"><span data-live="ryoga-extra-sub-${i}">${money(num(r.amount) * num(r.qty))}</span></td>
           <td><button type="button" class="smallbtn danger" data-action="del-ryoga-extra" data-idx="${i}">削除</button></td>
         </tr>`).join("");
 
       $("page").innerHTML = makeBlock(
         "両替", "固定行 + その他追加行",
-        `<!-- 硬貨・紙幣 左右2カラム -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
-          <!-- 硬貨 -->
+        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
           <div>
             <div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px;padding:0 2px;">硬貨</div>
             <table class="table">
               <thead><tr><th>金額</th><th>枚数</th><th>小計</th></tr></thead>
               <tbody>${coinRows}</tbody>
               <tfoot>
-                <tr><td colspan="2">硬貨 合計</td><td class="num"><span data-total="ryoga-coins">${money(c.coinsTotal)}</span></td></tr>
+                <tr><td colspan="2">硬貨 合計</td><td class="num"><span data-live="ryoga-coins">${money(c.coinsTotal)}</span></td></tr>
               </tfoot>
             </table>
           </div>
-          <!-- 紙幣 -->
           <div>
             <div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px;padding:0 2px;">紙幣</div>
             <table class="table">
               <thead><tr><th>金額</th><th>枚数</th><th>小計</th></tr></thead>
               <tbody>${billRows}</tbody>
               <tfoot>
-                <tr><td colspan="2">紙幣 合計</td><td class="num"><span data-total="ryoga-bills">${money(c.billsTotal)}</span></td></tr>
+                <tr><td colspan="2">紙幣 合計</td><td class="num"><span data-live="ryoga-bills">${money(c.billsTotal)}</span></td></tr>
               </tfoot>
             </table>
           </div>
         </div>
         ${d.extras.length > 0 ? `
-        <!-- その他 -->
         <div style="margin-top:12px;">
           <div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px;padding:0 2px;">その他</div>
           <table class="table">
             <thead><tr><th>区分</th><th>金額</th><th>枚数</th><th>小計</th><th></th></tr></thead>
             <tbody>${extraRows}</tbody>
             <tfoot>
-              <tr><td colspan="3">その他 合計</td><td class="num"><span data-total="ryoga-extras">${money(c.extrasTotal)}</span></td><td></td></tr>
+              <tr><td colspan="3">その他 合計</td><td class="num"><span data-live="ryoga-extras">${money(c.extrasTotal)}</span></td><td></td></tr>
             </tfoot>
           </table>
         </div>` : ""}
-        <!-- 総合計 -->
         <div style="margin-top:12px;padding:10px 12px;background:#f9fafb;border:1px solid var(--line);border-radius:10px;display:flex;justify-content:flex-end;align-items:center;gap:8px;font-weight:800;">
           <span style="color:var(--muted);font-size:13px;">総合計</span>
-          <span style="font-size:15px;"><span data-total="ryoga-grand">${money(c.grandTotal)}</span></span>
+          <span style="font-size:15px;"><span data-live="ryoga-grand">${money(c.grandTotal)}</span></span>
         </div>`,
         `<button type="button" class="smallbtn" data-action="add-ryoga-extra">＋ その他行追加</button>`
       );
@@ -1276,7 +1347,7 @@
         `<table class="table">
           <thead><tr><th>種類</th><th>枚数</th><th></th></tr></thead>
           <tbody>${fixedRows}${extraRows}</tbody>
-          <tfoot><tr><td>合計</td><td class="num"><span data-total="teleca-qty">${nfmt(c.totalQty)} 枚</span></td><td></td></tr></tfoot>
+          <tfoot><tr><td>合計</td><td class="num"><span data-live="teleca-qty">${nfmt(c.totalQty)} 枚</span></td><td></td></tr></tfoot>
         </table>
         <div class="hint" style="margin-top:12px;">※50、105、100度以外のテレカはオークション品想定</div>`,
         `<button type="button" class="smallbtn" data-action="add-teleca-extra">＋ その他行追加</button>`
@@ -1303,14 +1374,14 @@
                 <button type="button" class="smallbtn" data-action="toggle-kinken-mode" data-idx="${i}"
                   style="font-size:10px;padding:3px 6px;white-space:nowrap;flex-shrink:0;"
                   title="${modeLabel}モード（クリックで切替）">${modeLabel}</button>
-                <input type="text" inputmode="numeric" class="js-numfmt"
+                <input type="text" class="js-numfmt"
                   data-kinken-rate="${i}" data-focus-key="kinken-r-${i}"
                   value="${escapeHtml(formatRate(r.rate, mode))}"
                   placeholder="${escapeHtml(ratePh)}">
               </div>
             </td>
-            <td class="num">${money(totalFace)}</td>
-            <td class="num">${money(oroshi)}</td>
+            <td class="num"><span data-live="kinken-face-${i}">${money(totalFace)}</span></td>
+            <td class="num"><span data-live="kinken-oroshi-${i}">${money(oroshi)}</span></td>
             <td><button type="button" class="smallbtn danger" data-action="del-kinken" data-idx="${i}">削除</button></td>
           </tr>`;
       }).join("");
@@ -1324,8 +1395,8 @@
           <tfoot>
             <tr>
               <td colspan="4">合計</td>
-              <td class="num"><span data-total="kinken-face">${money(c.totalFace)}</span></td>
-              <td class="num"><span data-total="kinken-oroshi">${money(c.totalOroshi)}</span></td>
+              <td class="num"><span data-live="kinken-face">${money(c.totalFace)}</span></td>
+              <td class="num"><span data-live="kinken-oroshi">${money(c.totalOroshi)}</span></td>
               <td></td>
             </tr>
           </tfoot>
@@ -1335,6 +1406,7 @@
     }
 
     function makeFaceQtyTable(rows, prefix, footerTitle) {
+      const footKey = `${prefix}-foot`;
       return `
         <table class="table">
           <thead><tr><th>額面</th><th>枚数</th><th>額面計</th><th></th></tr></thead>
@@ -1343,14 +1415,14 @@
               <tr>
                 <td class="num">${textNumInput(r.face || "", { [`${prefix}-face`]: i, ...fk(`${prefix}-f-${i}`) }, "額面")}</td>
                 <td class="num">${textNumInput(r.qty  || "", { [`${prefix}-qty`]:  i, ...fk(`${prefix}-q-${i}`) }, "枚数")}</td>
-                <td class="num">${money(num(r.face) * num(r.qty))}</td>
+                <td class="num"><span data-live="${prefix}-sub-${i}">${money(num(r.face) * num(r.qty))}</span></td>
                 <td><button type="button" class="smallbtn danger" data-action="del-${prefix}" data-idx="${i}">削除</button></td>
               </tr>`).join("")}
           </tbody>
           <tfoot>
             <tr>
               <td colspan="2">${footerTitle}</td>
-              <td class="num">${money(rows.reduce((a, r) => a + num(r.face) * num(r.qty), 0))}</td>
+              <td class="num"><span data-live="${footKey}">${money(rows.reduce((a, r) => a + num(r.face) * num(r.qty), 0))}</span></td>
               <td></td>
             </tr>
           </tfoot>
@@ -1364,11 +1436,12 @@
         makeBlock("はがき", "1ブロックで入力",
           makeFaceQtyTable(rows, "hagaki", "合計"),
           `<button type="button" class="smallbtn" data-action="add-hagaki">＋ 行追加</button>`) +
-        `<div class="hint"><b>総合計</b> <span data-total="hagaki-total">${money(c.total)}</span></div>`;
+        `<div class="hint"><b>総合計</b> <span data-live="hagaki-total">${money(c.total)}</span></div>`;
     }
 
     function makeSimpleSheetTable(rows, prefix, footerTitle) {
       const subtotal = rows.reduce((a, r) => a + num(r.stampValue) * num(r.perSheetCount) * num(r.sheetQty), 0);
+      const footKey = `${prefix}-foot`;
       return `
         <table class="table">
           <thead>
@@ -1383,14 +1456,14 @@
                   <td class="num">${textNumInput(r.stampValue    || "", { [`${prefix}-value`]: i, ...fk(`${prefix}-v-${i}`) }, "額面")}</td>
                   <td class="num">${textNumInput(r.perSheetCount || "", { [`${prefix}-count`]: i, ...fk(`${prefix}-c-${i}`) }, "枚数/シート")}</td>
                   <td class="num">${textNumInput(r.sheetQty      || "", { [`${prefix}-qty`]:   i, ...fk(`${prefix}-q-${i}`) }, "シート数")}</td>
-                  <td class="num">${money(perSheet)}</td>
-                  <td class="num">${money(total)}</td>
+                  <td class="num"><span data-live="${prefix}-ps-${i}">${money(perSheet)}</span></td>
+                  <td class="num"><span data-live="${prefix}-sub-${i}">${money(total)}</span></td>
                   <td><button type="button" class="smallbtn danger" data-action="del-${prefix}" data-idx="${i}">削除</button></td>
                 </tr>`;
             }).join("")}
           </tbody>
           <tfoot>
-            <tr><td colspan="4">${footerTitle}</td><td class="num">${money(subtotal)}</td><td></td></tr>
+            <tr><td colspan="4">${footerTitle}</td><td class="num"><span data-live="${footKey}">${money(subtotal)}</span></td><td></td></tr>
           </tfoot>
         </table>`;
     }
@@ -1402,7 +1475,7 @@
         makeBlock("普通切手", "枚数(1シート内)の初期値は100",
           makeSimpleSheetTable(rows, "futsuu", "合計"),
           `<button type="button" class="smallbtn" data-action="add-futsuu">＋ 行追加</button>`) +
-        `<div class="hint"><b>総合計</b> <span data-total="futsuu-total">${money(c.total)}</span></div>`;
+        `<div class="hint"><b>総合計</b> <span data-live="futsuu-total">${money(c.total)}</span></div>`;
     }
 
     function makeMixedSheetTable(rows, prefix, footerTitle) {
@@ -1410,7 +1483,7 @@
 
       const inp = (val, attrs, ph) => {
         const attrStr = Object.entries(attrs).map(([k,v]) => `data-${k}="${escapeHtml(String(v))}"`).join(" ");
-        return `<input type="text" inputmode="numeric" class="js-numfmt" ${attrStr}
+        return `<input type="text" class="js-numfmt" ${attrStr}
           value="${escapeHtml(formatWithComma(val||""))}" placeholder="${escapeHtml(ph)}"
           style="width:100%;padding:5px 7px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--text);font:inherit;font-size:12px;text-align:right;">`;
       };
@@ -1420,8 +1493,6 @@
         const total    = perSheet * num(row.sheetQty);
         const groups   = row.groups || [];
 
-        // 左ペイン：額面・枚数ペアを横並び、ペア間に細い縦仕切り
-        // flex-wrap で折り返すため横スクロール不要
         const groupPairs = groups.map((group, gi) => {
           const isLast = gi === groups.length - 1;
           return `
@@ -1441,7 +1512,6 @@
             </div>`;
         }).join("");
 
-        // 右ペイン：シート数・合計・ボタン（グレー系で統一）
         const rightPane = `
           <div style="display:flex;align-items:center;gap:8px;height:100%;padding:6px 8px;">
             <div style="flex:1;min-width:50px;">
@@ -1450,7 +1520,7 @@
             </div>
             <div style="flex:1;min-width:70px;">
               <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">合計</div>
-              <div style="font-size:13px;font-weight:900;color:var(--text);white-space:nowrap;">${money(total)}</div>
+              <div style="font-size:13px;font-weight:900;color:var(--text);white-space:nowrap;"><span data-live="sheetmix-sub-${ri}">${money(total)}</span></div>
             </div>
             <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0;">
               <button type="button" class="smallbtn" data-action="add-sheetmixed-group" data-idx="${ri}"
@@ -1462,18 +1532,14 @@
 
         return `
           <div style="border:1px solid var(--line);border-radius:8px;margin-bottom:8px;overflow:hidden;">
-            <!-- ヘッダ：他の欄と同じグレー系 -->
             <div style="padding:4px 10px;background:#f3f4f6;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
               <span style="font-size:11px;font-weight:900;color:var(--text);">複合シート ${ri + 1}</span>
-              <span style="font-size:11px;color:var(--muted);">1シート = ${money(perSheet)}</span>
+              <span style="font-size:11px;color:var(--muted);">1シート = <span data-live="sheetmix-ps-${ri}">${money(perSheet)}</span></span>
             </div>
-            <!-- 本体：左30% / 右70% -->
             <div style="display:grid;grid-template-columns:3fr 7fr;min-height:52px;">
-              <!-- 左：額面・枚数ペア群（折り返し） -->
               <div style="padding:6px 6px;display:flex;align-items:flex-start;gap:4px;flex-wrap:wrap;border-right:1px solid var(--line);">
                 ${groupPairs}
               </div>
-              <!-- 右：シート数・合計・操作 -->
               <div>${rightPane}</div>
             </div>
           </div>`;
@@ -1482,7 +1548,7 @@
       return `
         ${cards}
         <div style="text-align:right;font-size:12px;font-weight:800;padding:4px 2px;color:var(--muted);">
-          ${footerTitle}：<span style="font-size:13px;color:var(--text);">${money(subtotal)}</span>
+          ${footerTitle}：<span style="font-size:13px;color:var(--text);"><span data-live="sheetmix-foot">${money(subtotal)}</span></span>
         </div>`;
     }
 
@@ -1500,9 +1566,9 @@
           `<button type="button" class="smallbtn" data-action="add-sheetmixed">＋ 複合シート追加</button>`)}
         <div class="hint">
           <b>総合計</b><br>
-          通常シート：<span data-total="sheet-simple-total">${money(c.simpleTotal)}</span><br>
-          複合シート：<span data-total="sheet-mixed-total">${money(c.mixedTotal)}</span><br>
-          <b>切手（シート）合計：<span data-total="sheet-total">${money(c.total)}</span></b>
+          通常シート：<span data-live="sheet-simple-total">${money(c.simpleTotal)}</span><br>
+          複合シート：<span data-live="sheet-mixed-total">${money(c.mixedTotal)}</span><br>
+          <b>切手（シート）合計：<span data-live="sheet-total">${money(c.total)}</span></b>
         </div>`;
     }
 
@@ -1521,7 +1587,7 @@
         ${makeBlock("別枠", "額面 / 枚数 / 額面計",
           makeFaceQtyTable(other,  "other",  "別枠 合計"),
           `<button type="button" class="smallbtn" data-action="add-other">＋ 行追加</button>`)}
-        <div class="hint"><b>総合計</b> <span data-total="bara-grand">${money(c.grandTotal)}</span></div>`;
+        <div class="hint"><b>総合計</b> <span data-live="bara-grand">${money(c.grandTotal)}</span></div>`;
     }
 
     function renderPage() {
@@ -1623,7 +1689,6 @@
       {
         const d = state.data.kinken;
         const c = calcKinken();
-        // ① 主要フィールド（face・qty）が揃った行のみ
         const rows = d.rows.filter(hasPrintableData.kinken).map(r => {
           const mode      = r.rateMode || "pct";
           const totalFace = num(r.face) * num(r.qty);
@@ -1657,7 +1722,6 @@
       {
         const d = state.data.hagaki;
         const c = calcHagaki();
-        // ① face・qty の両方が揃った行のみ
         const rows = d.rows.filter(hasPrintableData.faceQty).map(r =>
           `<tr><td class="p-right">${printNum(r.face)}</td><td class="p-right">${printNum(r.qty)}</td><td class="p-right">${printMoney(num(r.face)*num(r.qty))}</td></tr>`);
         if (rows.length > 0) {
@@ -1672,7 +1736,6 @@
       {
         const d = state.data.futsuu_kitte;
         const c = calcFutsuuKitte();
-        // ① stampValue・sheetQty が揃った行のみ（perSheetCount は補助値なので除外）
         const rows = d.rows.filter(hasPrintableData.simpleSheet).map(r => {
           const perSheet = num(r.stampValue) * num(r.perSheetCount);
           const total    = perSheet * num(r.sheetQty);
@@ -1697,7 +1760,6 @@
         const d = state.data.kitte_sheet;
         const c = calcKitteSheet();
 
-        // ① simpleRows: stampValue・sheetQty が揃った行のみ
         const simpleRows = d.simpleRows.filter(hasPrintableData.simpleSheet).map(r => {
           const perSheet = num(r.stampValue) * num(r.perSheetCount);
           const total    = perSheet * num(r.sheetQty);
@@ -1743,7 +1805,6 @@
       {
         const d = state.data.kitte_bara;
         const c = calcKitteBara();
-        // ① face・qty の両方が揃った行のみ
         const rows = [
           ...d.baraRows.filter(hasPrintableData.faceQty).map(r =>
             `<tr><td>バラ切手</td><td class="p-right">${printNum(r.face)}</td><td class="p-right">${printNum(r.qty)}</td><td class="p-right">${printMoney(num(r.face)*num(r.qty))}</td></tr>`),
@@ -1773,8 +1834,6 @@
     // ─────────────────────────────────────────────────────────────
     // renderAll
     // ─────────────────────────────────────────────────────────────
-    // focusout（blur）起因の renderAll ではフォーカスを復元しない。
-    // 復元すると「別の欄をクリック → focus イベントが横取り → 2クリック必要」になる。
     function renderAll({ restoreFocus = true } = {}) {
       const savedFocus = restoreFocus ? getActiveInputState() : null;
       syncHeaderInputs();
@@ -1795,7 +1854,6 @@
     function init() {
       syncHeaderInputs();
 
-      // ④ setupDelegatedEvents は一度だけ呼ぶ
       setupDelegatedEvents();
 
       $("genre").addEventListener("change", () => {
@@ -1821,7 +1879,6 @@
       $("btnPrint").addEventListener("click", () => window.print());
       $("btnClear").addEventListener("click", resetAll);
 
-      // ⑫ beforeunload の条件を hasAnyData（プレビューと同じ基準）に統一
       window.addEventListener("beforeunload", (e) => {
         if (!hasAnyData()) return;
         e.preventDefault();
