@@ -1877,7 +1877,9 @@
       });
 
       $("btnPrint").addEventListener("click", () => window.print());
-      $("btnClear").addEventListener("click", resetAll);
+      $("btnClear").addEventListener("click", () => {
+        if (confirm("入力内容をすべてリセットします。本当によろしいですか？")) resetAll();
+      });
 
       window.addEventListener("beforeunload", (e) => {
         if (!hasAnyData()) return;
