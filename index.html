@@ -1362,7 +1362,7 @@
           ? num(r.rate) * num(r.qty)
           : totalFace * (num(r.rate) / 100);
         const ratePh    = mode === "unit" ? "単価(円)" : "例) 97.5";
-        const modeLabel = mode === "unit" ? "単価" : "買取％";
+        const modeLabel = mode === "unit" ? "単価" : "卸率";
         const modeNext  = mode === "unit" ? "→ ％" : "→ 単価";
         return `
           <tr>
@@ -1388,9 +1388,9 @@
 
       const c = calcKinken();
       $("page").innerHTML = makeBlock(
-        "金券", "種類 / 額面 / 枚数 / 買取率 → 卸金額",
+        "金券", "種類 / 額面 / 枚数 / 卸率 → 卸金額",
         `<table class="table">
-          <thead><tr><th>種類</th><th>額面</th><th>枚数</th><th>買取率 / 単価</th><th>合計額面</th><th>卸金額</th><th></th></tr></thead>
+          <thead><tr><th>種類</th><th>額面</th><th>枚数</th><th>卸率 / 単価</th><th>合計額面</th><th>卸金額</th><th></th></tr></thead>
           <tbody>${rows}</tbody>
           <tfoot>
             <tr>
